@@ -1,0 +1,22 @@
+# Captures and logs (large binary files)
+captures/raw/*.pcap
+captures/processed/*.pcap
+captures/generated/*.pcap
+
+# tshark raw JSON (can be regenerated)
+json/tshark_raw/*.json
+
+# Logs
+logs/**/*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Docker
+docker/compose/.env
+
+# OS
+.DS_Store
