@@ -1,6 +1,17 @@
 # CU-DU split architecture: CU-CP, CU-UP, DU
 # Replaces monolithic gNB. Use with: docker compose -f docker-compose.yml -f docker-compose.split.yml up
 services:
+  gnb-builder:
+    # Builds the srsran/gnb image once, then exits. CU-CP/CU-UP/DU reuse the image.
+    image: srsran/gnb:latest
+    build:
+      context: https://github.com/srsran/srsRAN_Project.git#main
+      dockerfile: docker/Dockerfile
+      args:
+        OS_VERSION: "24.04"
+    networks: {}
+    entrypoint: [ "true" ]
+
   cu-cp:
     container_name: srsran_cu_cp
     image: srsran/gnb:latest
@@ -10,6 +21,8 @@ services:
     volumes:
       - cu_cp_pcap:/tmp
     depends_on:
+      gnb-builder:
+        condition: service_completed_successfully
       5gc:
         condition: service_healthy
     configs:
@@ -33,6 +46,8 @@ services:
     volumes:
       - cu_up_pcap:/tmp
     depends_on:
+      gnb-builder:
+        condition: service_completed_successfully
       cu-cp:
         condition: service_healthy
     configs:
@@ -54,6 +69,8 @@ services:
     volumes:
       - du_pcap:/tmp
     depends_on:
+      gnb-builder:
+        condition: service_completed_successfully
       cu-cp:
         condition: service_healthy
     configs:

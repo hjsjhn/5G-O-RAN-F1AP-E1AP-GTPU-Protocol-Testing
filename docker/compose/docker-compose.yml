@@ -1,9 +1,16 @@
 # 5GC (Open5GS) service
 # Provides AMF, SMF, UPF for 5G SA core network
+# Note: Open5GS container must be built from srsRAN source first (see docker/open5gs/)
 services:
   5gc:
     container_name: open5gs_5gc
-    image: srsran/open5gs:2.7.0
+    build:
+      context: ../open5gs
+      dockerfile: Dockerfile
+      args:
+        OS_VERSION: "22.04"
+        OPEN5GS_VERSION: "v2.7.0"
+    image: srsran/open5gs:latest
     privileged: true
     ports:
       - "9999:9999/tcp"
@@ -21,7 +28,6 @@ services:
 
 networks:
   ran:
-    name: ran_network
     driver: bridge
     ipam:
       driver: default
