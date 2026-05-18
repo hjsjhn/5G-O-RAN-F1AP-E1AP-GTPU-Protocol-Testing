@@ -1,5 +1,5 @@
-# CU-UP configuration
-# Connects to CU-CP (E1AP), DU (F1-U), UPF (N3)
+# CU-UP base configuration
+# E1AP/F1U addresses are overridden by compose config overlay
 cu_up:
   e1ap:
     cu_cp_addr: 10.53.1.4

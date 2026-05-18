@@ -1,5 +1,5 @@
-# CU-CP configuration
-# Connects to AMF (NGAP), CU-UP (E1AP), DU (F1AP)
+# CU-CP base configuration
+# AMF/E1AP/F1AP addresses are overridden by compose config overlay
 cu_cp:
   amf:
     addr: 10.53.1.2

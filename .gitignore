@@ -18,5 +18,8 @@ venv/
 # Docker
 docker/compose/.env
 
+# Cloned third-party repos
+docker/open5gs-5gc/
+
 # OS
 .DS_Store

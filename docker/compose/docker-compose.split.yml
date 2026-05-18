@@ -1,8 +1,8 @@
 # CU-DU split architecture: CU-CP, CU-UP, DU
-# Replaces monolithic gNB. Use with: docker compose -f docker-compose.yml -f docker-compose.split.yml up
+# Replaces monolithic gNB. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.split.yml up
 services:
   gnb-builder:
-    # Builds the srsran/gnb image once, then exits. CU-CP/CU-UP/DU reuse the image.
     image: srsran/gnb:latest
     build:
       context: https://github.com/srsran/srsRAN_Project.git#main
@@ -15,16 +15,18 @@ services:
   cu-cp:
     container_name: srsran_cu_cp
     image: srsran/gnb:latest
+    env_file:
+      - .env
     networks:
       ran:
-        ipv4_address: ${CU_CP_IP:-10.53.1.4}
+        ipv4_address: ${CU_CP_IP}
     volumes:
       - cu_cp_pcap:/tmp
     depends_on:
       gnb-builder:
         condition: service_completed_successfully
-      5gc:
-        condition: service_healthy
+      amf:
+        condition: service_started
     configs:
       - cu_cp_config.yml
       - cu_cp_compose_config.yml
@@ -38,11 +40,13 @@ services:
   cu-up:
     container_name: srsran_cu_up
     image: srsran/gnb:latest
+    env_file:
+      - .env
     networks:
       ran:
-        ipv4_address: ${CU_UP_IP:-10.53.1.5}
+        ipv4_address: ${CU_UP_IP}
       f1u:
-        ipv4_address: ${CU_UP_F1U_IP:-172.18.10.2}
+        ipv4_address: ${CU_UP_F1U_IP}
     volumes:
       - cu_up_pcap:/tmp
     depends_on:
@@ -61,11 +65,13 @@ services:
     privileged: true
     cap_add:
       - SYS_NICE
+    env_file:
+      - .env
     networks:
       ran:
-        ipv4_address: ${DU_IP:-10.53.1.6}
+        ipv4_address: ${DU_IP}
       f1u:
-        ipv4_address: ${DU_F1U_IP:-172.18.10.3}
+        ipv4_address: ${DU_F1U_IP}
     volumes:
       - du_pcap:/tmp
     depends_on:
@@ -85,35 +91,39 @@ configs:
     content: |
       cu_cp:
         amf:
-          addr: ${OPEN5GS_IP:-10.53.1.2}
-          bind_addr: ${CU_CP_IP:-10.53.1.4}
+          addr: ${AMF_RAN_IP}
+          bind_addr: ${CU_CP_IP}
         e1ap:
-          bind_addr: ${CU_CP_IP:-10.53.1.4}
+          bind_addr: ${CU_CP_IP}
         f1ap:
-          bind_addr: ${CU_CP_IP:-10.53.1.4}
+          bind_addr: ${CU_CP_IP}
   cu_up_config.yml:
     file: ${CUUP_CONFIG_PATH:-../configs/cu_up.yml}
   cu_up_compose_config.yml:
     content: |
       cu_up:
         e1ap:
-          cu_cp_addr: ${CU_CP_IP:-10.53.1.4}
-          bind_addr: ${CU_UP_IP:-10.53.1.5}
+          cu_cp_addr: ${CU_CP_IP}
+          bind_addr: ${CU_UP_IP}
+        ngu:
+          socket:
+            -
+              bind_addr: ${CU_UP_IP}
         f1u:
           socket:
             -
-              bind_addr: ${CU_UP_F1U_IP:-172.18.10.2}
+              bind_addr: ${CU_UP_F1U_IP}
   du_config.yml:
     file: ${DU_CONFIG_PATH:-../configs/du_zmq.yml}
   du_compose_config.yml:
     content: |
       f1ap:
-        cu_cp_addr: ${CU_CP_IP:-10.53.1.4}
-        bind_addr: ${DU_IP:-10.53.1.6}
+        cu_cp_addr: ${CU_CP_IP}
+        bind_addr: ${DU_IP}
       f1u:
         socket:
           -
-            bind_addr: ${DU_F1U_IP:-172.18.10.3}
+            bind_addr: ${DU_F1U_IP}
 
 volumes:
   cu_cp_pcap:
