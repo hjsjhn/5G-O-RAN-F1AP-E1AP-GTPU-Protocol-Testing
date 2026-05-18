@@ -1,30 +1,23 @@
 # CU-DU split architecture: CU-CP, CU-UP, DU
-# Replaces monolithic gNB. Use with:
-#   docker compose -f docker-compose.yml -f docker-compose.split.yml up
-services:
-  gnb-builder:
-    image: srsran/gnb:latest
-    build:
-      context: https://github.com/srsran/srsRAN_Project.git#main
-      dockerfile: docker/Dockerfile
-      args:
-        OS_VERSION: "24.04"
-    networks: {}
-    entrypoint: [ "true" ]
+# Uses herlesupreeth/docker_srsran pre-built image (includes srscucp, srscuup, srsdu)
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.split.yml up
 
+x-srsran-common: &srsran-common
+  platform: linux/amd64
+  image: ghcr.io/herlesupreeth/docker_srsran:master
+  env_file:
+    - .env
+
+services:
   cu-cp:
+    <<: *srsran-common
     container_name: srsran_cu_cp
-    image: srsran/gnb:latest
-    env_file:
-      - .env
     networks:
       ran:
         ipv4_address: ${CU_CP_IP}
     volumes:
       - cu_cp_pcap:/tmp
     depends_on:
-      gnb-builder:
-        condition: service_completed_successfully
       amf:
         condition: service_started
     configs:
@@ -38,10 +31,8 @@ services:
     command: srscucp -c /cu_cp_config.yml -c /cu_cp_compose_config.yml
 
   cu-up:
+    <<: *srsran-common
     container_name: srsran_cu_up
-    image: srsran/gnb:latest
-    env_file:
-      - .env
     networks:
       ran:
         ipv4_address: ${CU_UP_IP}
@@ -50,8 +41,6 @@ services:
     volumes:
       - cu_up_pcap:/tmp
     depends_on:
-      gnb-builder:
-        condition: service_completed_successfully
       cu-cp:
         condition: service_healthy
     configs:
@@ -60,13 +49,11 @@ services:
     command: srscuup -c /cu_up_config.yml -c /cu_up_compose_config.yml
 
   du:
+    <<: *srsran-common
     container_name: srsran_du
-    image: srsran/gnb:latest
     privileged: true
     cap_add:
       - SYS_NICE
-    env_file:
-      - .env
     networks:
       ran:
         ipv4_address: ${DU_IP}
@@ -75,8 +62,6 @@ services:
     volumes:
       - du_pcap:/tmp
     depends_on:
-      gnb-builder:
-        condition: service_completed_successfully
       cu-cp:
         condition: service_healthy
     configs:

@@ -1,0 +1,27 @@
+# Build srsRAN CU-CP/CU-UP/DU natively for ARM64 (Apple Silicon)
+FROM ubuntu:24.04 AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake git libfftw3-dev libmbedtls-dev libboost-all-dev \
+    libsctp-dev libconfig++-dev libgtest-dev libzmq3-dev pkg-config \
+    libyaml-cpp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY srsran-src /opt/srsRAN_Project
+
+WORKDIR /opt/srsRAN_Project/build
+RUN cmake .. -DENABLE_UHD=OFF -DENABLE_ZEROMQ=ON -DENABLE_CSV=OFF \
+    -DENABLE_EXAMPLES=OFF -DENABLE_TESTS=OFF && \
+    make -j$(nproc) && make install
+
+# Runtime image
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfftw3-single3 libsctp1 libzmq5 libatomic1 iproute2 \
+    libmbedtls-dev libboost-all-dev libconfig++-dev libyaml-cpp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/bin/srscucp /usr/local/bin/
+COPY --from=builder /usr/local/bin/srscuup /usr/local/bin/
+COPY --from=builder /usr/local/bin/srsdu /usr/local/bin/

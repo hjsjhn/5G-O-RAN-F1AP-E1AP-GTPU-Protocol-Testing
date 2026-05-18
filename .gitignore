@@ -23,3 +23,4 @@ docker/open5gs-5gc/
 
 # OS
 .DS_Store
+docker/srsran-src/
