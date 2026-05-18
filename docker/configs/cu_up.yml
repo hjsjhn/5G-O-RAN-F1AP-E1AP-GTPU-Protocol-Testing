@@ -1,0 +1,26 @@
+# CU-UP configuration
+# Connects to CU-CP (E1AP), DU (F1-U), UPF (N3)
+cu_up:
+  e1ap:
+    cu_cp_addr: 10.53.1.4
+    bind_addr: 10.53.1.5
+  ngu:
+    socket:
+      -
+        bind_addr: 10.53.1.5
+  f1u:
+    socket:
+      -
+        bind_addr: 172.18.10.2
+
+log:
+  filename: /tmp/cu_up.log
+  all_level: info
+
+pcap:
+  e1ap_enable: true
+  e1ap_filename: /tmp/cu_up_e1ap.pcap
+  f1u_enable: true
+  f1u_filename: /tmp/cu_up_f1u.pcap
+  n3_enable: true
+  n3_filename: /tmp/cu_up_n3.pcap

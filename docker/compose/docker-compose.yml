@@ -1,0 +1,29 @@
+# 5GC (Open5GS) service
+# Provides AMF, SMF, UPF for 5G SA core network
+services:
+  5gc:
+    container_name: open5gs_5gc
+    image: srsran/open5gs:2.7.0
+    privileged: true
+    ports:
+      - "9999:9999/tcp"
+    env_file:
+      - open5gs.env
+    command: 5gc -c open5gs-5gc.yml
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.20 7777" ]
+      interval: 3s
+      timeout: 1s
+      retries: 60
+    networks:
+      ran:
+        ipv4_address: ${OPEN5GS_IP:-10.53.1.2}
+
+networks:
+  ran:
+    name: ran_network
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.53.1.0/24

@@ -1,0 +1,28 @@
+# CU-CP configuration
+# Connects to AMF (NGAP), CU-UP (E1AP), DU (F1AP)
+cu_cp:
+  amf:
+    addr: 10.53.1.2
+    bind_addr: 10.53.1.4
+    supported_tracking_areas:
+      - tac: 7
+        plmn_list:
+          - plmn: "00101"
+            tai_slice_support_list:
+              - sst: 1
+  e1ap:
+    bind_addr: 10.53.1.4
+  f1ap:
+    bind_addr: 10.53.1.4
+
+log:
+  filename: /tmp/cu_cp.log
+  all_level: info
+
+pcap:
+  ngap_enable: true
+  ngap_filename: /tmp/cu_cp_ngap.pcap
+  f1ap_enable: true
+  f1ap_filename: /tmp/cu_cp_f1ap.pcap
+  e1ap_enable: true
+  e1ap_filename: /tmp/cu_cp_e1ap.pcap
