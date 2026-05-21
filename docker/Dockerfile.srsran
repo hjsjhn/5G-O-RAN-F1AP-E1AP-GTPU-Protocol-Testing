@@ -25,3 +25,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/local/bin/srscucp /usr/local/bin/
 COPY --from=builder /usr/local/bin/srscuup /usr/local/bin/
 COPY --from=builder /usr/local/bin/srsdu /usr/local/bin/
+COPY --from=builder /usr/local/bin/gnb /usr/local/bin/

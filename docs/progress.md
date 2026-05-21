@@ -29,28 +29,40 @@
 - AMF NGAP 只绑定内部 IP → 修改 amf.yaml 模板 ngap address 为 0.0.0.0
 - `.env` 变量名不能以数字开头 → `5GC_NETWORK` 改为 `CORE_NETWORK`
 
-## 阶段 1.5：srsRAN ARM64 本地构建 🔄（进行中）
+## 阶段 1.5：srsRAN ARM64 本地构建 ✅
 
 - [x] 调研确认 srsRAN 官方无 ARM64 预构建镜像
 - [x] 调研确认 herlesupreeth/docker_srsran 只有 amd64（AVX 依赖，Rosetta 不支持）
 - [x] 编写 Dockerfile.srsran 本地 ARM64 构建脚本
 - [x] 克隆 srsRAN_Project 源码到 docker/srsran-src/
-- [ ] **正在构建** srsRAN ARM64 Docker 镜像（srscucp/srscuup/srsdu）
+- [x] 成功构建 srsran/gnb:local-arm64 镜像（srscucp/srscuup/srsdu/gnb）
 
 **构建问题记录：**
 - Docker build 中 git clone 归档仓库失败 → 改为先本地 clone 再 COPY 进容器
 - 缺少 yaml-cpp 依赖导致 cmake 失败 → 补充 `libyaml-cpp-dev`
 
-## 阶段 2：UE 注册与 PDU Session 跑通 ⬜
+## 阶段 2：UE 注册与 PDU Session 跑通 ✅
 
-- [ ] 启动 CU-CP / CU-UP / DU 容器
-- [ ] 确认 CU-CP 与 AMF 建立 NGAP 连接
-- [ ] 确认 CU-CP 与 CU-UP 建立 E1AP 连接
-- [ ] 确认 DU 与 CU-CP 建立 F1AP 连接
-- [ ] 在 WebUI 添加 UE 订阅记录
-- [ ] 部署 srsUE 并完成注册
-- [ ] 完成 PDU Session 建立
-- [ ] 收集各接口 pcap 和日志
+- [x] 启动 CU-CP / CU-UP / DU 容器（本地 ARM64 镜像）
+- [x] 确认 CU-CP 与 AMF 建立 NGAP SCTP 连接（10.53.1.4 → 10.53.1.2:38412）
+- [x] 确认 CU-CP 与 CU-UP 建立 E1AP SCTP 连接（10.53.1.4:38462 → 10.53.1.5）
+- [x] 确认 DU 与 CU-CP 建立 F1AP SCTP 连接（10.53.1.4:38472 → 10.53.1.6）
+- [x] 构建 srsUE Docker 镜像（srsRAN_4G + FFTW_ESTIMATE 修复）
+- [x] 自动 provision UE 订阅到 MongoDB
+- [x] srsUE 通过 ZMQ 空口完成注册
+- [x] PDU Session 建立，UE 拿到 IP 10.45.0.9
+- [x] 组件 pcap 输出已启用
+
+**DU ZMQ 配置要点：**
+- band 3 / 10MHz / common_scs=15 / srate=11.52e6
+- coreset0_index=0 / time_alignment_calibration=0
+- ZMQ 端口绑定实际 IP（非 localhost）
+
+**新增脚本：**
+- `scripts/env/run_srsue_zmq_smoke.sh`：一键 srsUE smoke test（构建/注册/验证）
+- `scripts/env/check_core_ready.sh`：验证 5GC+RAN 所有链路就绪
+- `scripts/env/provision_subscriber.sh`：自动注入 UE 订阅
+- `docker/compose/.env.example`：完整环境变量模板
 
 ## 阶段 3：接口抓包与协议识别 ⬜
 

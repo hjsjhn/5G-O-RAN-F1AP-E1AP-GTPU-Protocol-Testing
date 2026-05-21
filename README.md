@@ -16,17 +16,20 @@
 ## 技术架构
 
 ```
-5GC (Open5GS)              RAN (srsRAN CU-DU Split)             UE (srsUE)
+UE (srsUE)            RAN (srsRAN CU-DU Split)                5GC (Open5GS)
 
-+----------+    NGAP    +---------+   E1AP   +---------+
-| AMF      |<---------->| CU-CP   |<------->| CU-UP   |<-- N3 --> UPF
-| SMF/UPF  |            | (F1AP)  |         | (GTP-U) |
-| UDM/UDR  |            +----+----+         +----+----+
-| AUSF/PCF |                 | F1AP              | F1-U
-| NRF/WebUI|            +----+----+              |
-| MongoDB  |            |   DU    |<-------------+
-+----------+            | (ZMQ)   |
-                        +---------+     srsUE <--> DU (ZMQ空口)
+                    +---------+   E1AP   +---------+        +---------+
+              F1AP  |  CU-CP  |<------->|  CU-UP  |  N3    |  AMF    |
+srsUE <--ZMQ--> DU  |  (NGAP) |         | (GTP-U) |<------>|  SMF    |
+                    +---------+         +---------+        |  UPF    |
+                       |                 |    |             |  UDM    |
+                       | F1-C            | F1-U  N3        |  UDR    |
+                       |                 |    |             |  AUSF   |
+                    +--+-----------------+--+--+            |  NRF    |
+                    |         DU (ZMQ RF)     |             |  PCF    |
+                    +-------------------------+             |  WebUI  |
+                                                            | MongoDB |
+                                                            +---------+
 ```
 
 所有组件基于 Docker Compose 部署，DU 使用 ZeroMQ 模拟空口（无需 SDR 硬件）。
