@@ -79,9 +79,36 @@
 - `scripts/env/provision_subscriber.sh`：自动注入 UE 订阅
 - `docker/compose/.env.example`：完整环境变量模板
 
-## 阶段 3：接口抓包与协议识别 ⬜
+## 阶段 3：接口抓包与协议识别 ✅
 
-待开始。目标：从容器中提取 F1AP/E1AP/NGAP/GTP-U pcap，用 tshark 验证内容。
+- [x] 从 CU-CP 容器提取 pcap（srsRAN 内置 pcap 输出）
+- [x] NGAP (CU-CP ↔ AMF)：87 帧，覆盖完整注册+PDU Session 流程
+- [x] F1AP (CU-CP ↔ DU)：128 帧，覆盖 F1Setup + RRC + UE Context 管理
+- [x] 用 tshark 验证消息可被正确解析，无 Malformed Packet
+
+**NGAP 消息类型（8 种）：**
+- NGSetup Request/Response (21)
+- InitialUEMessage (20)
+- InitialContextSetup Request/Response (4)
+- DownlinkNASTransport / UplinkNASTransport (29)
+- PDUSessionResourceSetup Request/Response (15)
+- PDUSessionResourceModify (46)
+- UERadioCapabilityInfoIndication (14)
+- NGReset / NGResetAcknowledge (44)
+
+**F1AP 消息类型（7 种）：**
+- F1Setup Request/Response (1)
+- InitialULRRCMessageTransfer (11)
+- ULRRCMessageTransfer (12)
+- DLRRCMessageTransfer (13)
+- UEContextSetup Request/Response (5)
+- UEContextModification Request/Response (7)
+- F1Removal Request/Response (26)
+
+**尚未捕获的协议：**
+- E1AP：srsRAN CU-CP 的 E1AP pcap 为 0B，可能因为 E1AP 在 CU-CP 内部处理未经过独立 SCTP
+- GTP-U：CU-UP 的 pcap 也为 0B，需进一步排查
+- 这些接口可能需要用 tcpdump 在容器网络层面抓取（而非 srsRAN 内置 pcap）
 
 ## 阶段 4：pcap → JSON 解析与 IE 提取 ⬜
 
