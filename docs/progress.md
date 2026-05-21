@@ -79,36 +79,183 @@
 - `scripts/env/provision_subscriber.sh`：自动注入 UE 订阅
 - `docker/compose/.env.example`：完整环境变量模板
 
-## 阶段 3：接口抓包与协议识别 ✅
+## 抓包与协议识别实操报告
 
-- [x] 从 CU-CP 容器提取 pcap（srsRAN 内置 pcap 输出）
-- [x] NGAP (CU-CP ↔ AMF)：87 帧，覆盖完整注册+PDU Session 流程
-- [x] F1AP (CU-CP ↔ DU)：128 帧，覆盖 F1Setup + RRC + UE Context 管理
-- [x] 用 tshark 验证消息可被正确解析，无 Malformed Packet
+### 背景
 
-**NGAP 消息类型（8 种）：**
-- NGSetup Request/Response (21)
-- InitialUEMessage (20)
-- InitialContextSetup Request/Response (4)
-- DownlinkNASTransport / UplinkNASTransport (29)
-- PDUSessionResourceSetup Request/Response (15)
-- PDUSessionResourceModify (46)
-- UERadioCapabilityInfoIndication (14)
-- NGReset / NGResetAcknowledge (44)
+srsRAN 的 CU-CP/CU-UP/DU 组件内置了 pcap 输出功能，通过配置文件的 `pcap:` 段启用。这是最方便的抓包方式——不需要在宿主机装 tcpdump，不需要找 Docker bridge 接口，组件会自动把经过它的协议消息写成本地 pcap 文件。
 
-**F1AP 消息类型（7 种）：**
-- F1Setup Request/Response (1)
-- InitialULRRCMessageTransfer (11)
-- ULRRCMessageTransfer (12)
-- DLRRCMessageTransfer (13)
-- UEContextSetup Request/Response (5)
-- UEContextModification Request/Response (7)
-- F1Removal Request/Response (26)
+### 抓包前的配置
 
-**尚未捕获的协议：**
-- E1AP：srsRAN CU-CP 的 E1AP pcap 为 0B，可能因为 E1AP 在 CU-CP 内部处理未经过独立 SCTP
-- GTP-U：CU-UP 的 pcap 也为 0B，需进一步排查
-- 这些接口可能需要用 tcpdump 在容器网络层面抓取（而非 srsRAN 内置 pcap）
+各组件的配置文件（`docker/configs/*.yml`）中已经开启了 pcap：
+
+```yaml
+# cu_cp.yml
+pcap:
+  ngap_enable: true
+  ngap_filename: /tmp/cu_cp_ngap.pcap
+  f1ap_enable: true
+  f1ap_filename: /tmp/cu_cp_f1ap.pcap
+  e1ap_enable: true
+  e1ap_filename: /tmp/cu_cp_e1ap.pcap
+```
+
+pcap 文件写在容器的 `/tmp/` 目录下，因为 compose 里挂了 volume（`cu_cp_pcap:/tmp`），即使容器销毁数据也不会丢。
+
+### 怎么触发流量
+
+需要一次完整的 UE 注册 + PDU Session 流程才能产生各接口的信令消息。用已有的脚本：
+
+```bash
+# 确保环境在跑
+./scripts/env/check_core_ready.sh
+
+# 跑 srsUE smoke test（会自动重建 DU、注册 UE、等 PDU Session 建立）
+./scripts/env/run_srsue_zmq_smoke.sh run
+```
+
+`run_srsue_zmq_smoke.sh` 内部会：
+1. 检查 5GC + RAN 所有容器和链路就绪
+2. 自动注入 UE 订阅到 MongoDB（IMSI/Ki/OPc）
+3. 强制重建 DU（`SRSUE_RECREATE_DU=1`），触发新的 F1Setup 握手
+4. 启动 srsUE 容器，等待 `tun_srsue` 拿到 IPv4 地址
+
+如果需要多次抓包，先 `down` 再 `run`：
+
+```bash
+./scripts/env/run_srsue_zmq_smoke.sh down   # 清理旧 UE 容器
+./scripts/env/run_srsue_zmq_smoke.sh run     # 重新跑
+```
+
+### 怎么提取 pcap
+
+pcap 在容器的 `/tmp/` 里，用 `docker cp` 拷出来：
+
+```bash
+RUN=captures/raw/run_002
+mkdir -p $RUN/{cu_cp,cu_up,du}
+
+docker cp srsran_cu_cp:/tmp/. $RUN/cu_cp/
+docker cp srsran_cu_up:/tmp/. $RUN/cu_up/
+docker cp srsran_du:/tmp/.    $RUN/du/
+
+ls -lh $RUN/cu_cp/*.pcap
+ls -lh $RUN/cu_up/*.pcap
+ls -lh $RUN/du/*.pcap
+```
+
+注意：`docker cp` 会把 `/tmp/` 下所有东西都拷出来（包括日志、socket 文件等），只看 `.pcap` 就行。
+
+### 怎么分析 pcap
+
+用 tshark 直接看消息列表：
+
+```bash
+# NGAP 消息列表
+tshark -r $RUN/cu_cp/cu_cp_ngap.pcap
+
+# F1AP 消息列表
+tshark -r $RUN/cu_cp/cu_cp_f1ap.pcap
+
+# 查看某一条消息的完整字段（verbose 模式）
+tshark -r $RUN/cu_cp/cu_cp_f1ap.pcap -V | head -80
+
+# 只看某个 procedureCode 的消息
+tshark -r $RUN/cu_cp/cu_cp_ngap.pcap -T fields -e ngap.procedureCode | sort | uniq -c | sort -rn
+```
+
+也可以直接用 Wireshark GUI 打开 pcap 文件看。
+
+### 这次抓到的内容
+
+**NGAP（CU-CP ↔ AMF）：87 帧，8 种消息**
+
+| 消息 | Procedure Code | 帧数 | 说明 |
+|------|---------------|------|------|
+| NGSetup | 21 | 5 | CU-CP 启动时与 AMF 建立连接 |
+| InitialUEMessage | 20 | 10 | UE 发起注册，每个 UE 流程一条 |
+| DownlinkNASTransport | 29 (含上行) | 10+10 | Auth/Security Mode/NAS 信令 |
+| InitialContextSetup | 4 | 10 | AMF 要求 CU-CP 建立 UE 上下文 |
+| PDUSessionResourceSetup | 15 | 10 | 建立 PDU Session（分配 TEID） |
+| PDUSessionResourceModify | 46 | 27 | QoS 修改（最频繁的消息） |
+| UERadioCapabilityInfoIndication | 14 | 10 | UE 能力上报 |
+| NGReset | 44 | 5 | DU 重建时触发的重置 |
+
+**F1AP（CU-CP ↔ DU）：128 帧，7 种消息**
+
+| 消息 | Procedure Code | 帧数 | 说明 |
+|------|---------------|------|------|
+| F1Setup | 1 | 12 | DU 启动时与 CU-CP 建立 F1 连接 |
+| InitialULRRCMessageTransfer | 11 | 10 | UE 的 RRC 消息通过 DU 转给 CU-CP |
+| ULRRCMessageTransfer | 12 | 35 | 上行 RRC/NAS 消息 |
+| DLRRCMessageTransfer | 13 | 45 | 下行 RRC/NAS 消息（最多的消息） |
+| UEContextSetup | 5 | 10 | CU-CP 要求 DU 建立 UE 上下文（含 SRB/DRB 配置） |
+| UEContextModification | 7 | 10 | 修改 UE 上下文（触发 RRC Reconfiguration） |
+| F1Removal | 26 | 6 | DU 重建时断开 F1 连接 |
+
+### 踩过的坑
+
+**坑 1：DU 被重建后 DU 侧 pcap 清零**
+
+`run_srsue_zmq_smoke.sh` 会 `--force-recreate` DU 容器来确保干净的 F1Setup 握手。重建后 DU 的新 pcap 是空的（因为 pcap 文件是在 DU 启动瞬间创建的，而 F1Setup 已经在 smoke test 的 `wait_for_log` 期间完成了）。
+
+实际影响：DU 侧的 pcap（`du_f1ap.pcap`、`du_f1u.pcap`）始终为 0B。但 CU-CP 侧的 pcap 完整记录了所有 F1AP 消息（因为 CU-CP 没有被重建），所以不影响分析。
+
+**坑 2：E1AP pcap 为空**
+
+CU-CP 和 CU-UP 的 `e1ap_*.pcap` 都是 0B。虽然 `ss -A sctp` 确认 E1AP SCTP 连接已建立（CU-CP:38462 ↔ CU-UP），但 srsRAN 没有往 pcap 文件里写数据。可能原因：
+- srsRAN 的 E1AP pcap 功能在当前版本有 bug 或未实装
+- E1AP 消息在 CU-CP/CU-UP 内部走的是内存通道而非 SCTP socket（尽管 SCTP 连接建立了）
+
+解决方案：需要在 Docker 网络上用 tcpdump 直接抓 SCTP 流量（过滤 port 38462/38472），或者用 Wireshark 在宿主机抓 Docker bridge。
+
+**坑 3：GTP-U pcap 为空**
+
+CU-UP 的 `f1u_*.pcap` 和 `n3_*.pcap` 都是 0B。原因类似：srsRAN CU-UP 的用户面 pcap 功能可能未正确写入文件。GTP-U 是 UDP 流量（port 2152），需要在 f1u_net bridge 或 CU-UP 容器内用 tcpdump 抓取。
+
+**坑 4：pcap 格式是 Wireshark Upper PDU（非原始 SCTP 帧）**
+
+srsRAN 的内置 pcap 输出的是 `exported_pdu` 格式——只有协议层内容（如 F1AP ASN.1 编码），没有 SCTP/IP/Ethernet 头。这意味着：
+- tshark 可以正常解析协议字段
+- 但看不到实际的 SCTP 流和 IP 地址
+- 如果需要完整的 SCTP/IP 层 pcap（用于协议栈分析或回放），必须用 tcpdump 在网络层抓取
+
+**坑 5：pcap 文件太大不能推到 GitHub**
+
+DU 的日志文件 `/tmp/du.log` 有 145MB，GitHub 拒绝推送。已在 `.gitignore` 中排除了 `captures/raw/` 下的所有 `.log` 和 `.pcap` 文件。pcap 数据只保存在本地。
+
+### 尚未解决的问题
+
+- **E1AP 抓包**：需要在容器内装 tcpdump 或在 Docker 网络层面抓 SCTP port 38462
+- **GTP-U 抓包**：需要在 f1u_net bridge 上抓 UDP port 2152
+- **原始 SCTP/IP 帧**：srsRAN 内置 pcap 没有 IP 头，如果要做完整的协议栈分析或回放测试，需要额外抓取
+
+### 验证方法
+
+```bash
+# 1. 确认环境正常
+./scripts/env/check_core_ready.sh
+# 期望输出: OK: 5G Core is up; SMF/UPF PFCP is associated; NGAP/E1AP/F1AP SCTP links are established.
+
+# 2. 跑一次 UE 流程
+./scripts/env/run_srsue_zmq_smoke.sh run
+# 期望输出: OK: srsUE reached the DU over ZMQ and produced attach/session progress logs.
+
+# 3. 提取 pcap
+mkdir -p /tmp/pcap_check && docker cp srsran_cu_cp:/tmp/. /tmp/pcap_check/
+
+# 4. 验证 F1AP
+tshark -r /tmp/pcap_check/cu_cp_f1ap.pcap 2>&1 | head -5
+# 应该看到 F1SetupRequest, F1SetupResponse, InitialULRRCMessageTransfer 等
+
+# 5. 验证 NGAP
+tshark -r /tmp/pcap_check/cu_cp_ngap.pcap 2>&1 | head -5
+# 应该看到 NGSetupRequest, NGSetupResponse, InitialUEMessage 等
+
+# 6. 确认无 Malformed Packet
+tshark -r /tmp/pcap_check/cu_cp_f1ap.pcap -T fields -e f1ap.procedureCode 2>&1 | grep -c .
+# 应该返回帧数（如 128），且 tshark 没有 malformed 警告
+```
 
 ## 阶段 4：pcap → JSON 解析与 IE 提取 ⬜
 
