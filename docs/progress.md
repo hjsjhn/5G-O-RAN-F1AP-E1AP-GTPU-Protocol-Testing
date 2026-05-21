@@ -1,10 +1,25 @@
 # 实施进度
 
+> 最后更新：2026-05-21
+
+## 总览
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 0. 仓库和文档结构 | ✅ 完成 | GitHub 仓库、目录结构、CLAUDE.md |
+| 1. Docker Compose 环境部署 | ✅ 完成 | 5GC + RAN CU-DU Split + 网络拓扑 |
+| 1.5. srsRAN ARM64 本地构建 | ✅ 完成 | Apple Silicon 原生运行，无 AVX 依赖 |
+| 2. UE 注册与 PDU Session 跑通 | ✅ 完成 | srsUE + ZMQ，UE 拿到 IP |
+| 3. 接口抓包与协议识别 | ⬜ 待开始 | |
+| 4. pcap → JSON 解析与 IE 提取 | ⬜ 待开始 | |
+| 5. JSON/template → pcap 重编码与验证 | ⬜ 待开始 | |
+| 6. 自动化测试生成与报告 | ⬜ 待开始 | |
+
 ## 阶段 0：仓库和文档结构 ✅
 
 - [x] 创建 GitHub 仓库 `5G-O-RAN-F1AP-E1AP-GTPU-Protocol-Testing`
 - [x] 建立目录结构（docker/, scripts/, captures/, json/, reports/, tests/）
-- [x] 编写 CLAUDE.md、README.md、.gitignore
+- [x] 编写 CLAUDE.md、中文 README.md、.gitignore
 - [x] 创建环境管理脚本（start/stop/reset/check）
 
 ## 阶段 1：Docker Compose 环境部署 ✅
@@ -66,12 +81,58 @@
 
 ## 阶段 3：接口抓包与协议识别 ⬜
 
+待开始。目标：从容器中提取 F1AP/E1AP/NGAP/GTP-U pcap，用 tshark 验证内容。
+
 ## 阶段 4：pcap → JSON 解析与 IE 提取 ⬜
+
+待开始。
 
 ## 阶段 5：JSON/template → pcap 重编码与验证 ⬜
 
+待开始。
+
 ## 阶段 6：自动化测试生成与报告 ⬜
+
+待开始。
 
 ---
 
-*最后更新：2026-05-18*
+## 当前运行环境快照（2026-05-21）
+
+### 容器状态
+
+```
+5GC (12 containers):
+  mongo / nrf / scp / ausf / udr / udm / pcf / bsf / nssf / smf / amf / upf / webui
+
+RAN (3 containers):
+  srsran_cu_cp (healthy) / srsran_cu_up / srsran_du
+
+UE (1 container):
+  srsue_5g_zmq (IP: 10.45.0.9)
+```
+
+### SCTP 连接
+
+```
+CU-CP (10.53.1.4) → AMF  (10.53.1.2:38412)  NGAP
+CU-CP (10.53.1.4:38462) ← CU-UP (10.53.1.5)  E1AP
+CU-CP (10.53.1.4:38472) ← DU    (10.53.1.6)  F1AP
+```
+
+### 网络拓扑
+
+```
+5gc_net  172.22.0.0/24   5GC NF 内部 SBI 通信
+ran_net  10.53.1.0/24    AMF(.2) UPF(.3) CU-CP(.4) CU-UP(.5) DU(.6) UE(.7)
+f1u_net  172.18.10.0/24  CU-UP(.2) ↔ DU(.3) F1-U 用户面
+```
+
+### Docker 镜像
+
+```
+ghcr.io/herlesupreeth/docker_open5gs:master  (amd64, Rosetta)  5GC NF
+mongo:6.0                                     (multi-arch)      MongoDB
+srsran/gnb:local-arm64                        (arm64 native)    CU-CP/CU-UP/DU
+srsue-5g-zmq:local                            (arm64 native)    srsUE
+```
