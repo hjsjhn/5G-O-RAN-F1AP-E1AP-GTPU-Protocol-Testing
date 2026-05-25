@@ -1,0 +1,542 @@
+[
+  {
+    "frame": 1,
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000003"
+    },
+    "info": "T-PDU",
+    "inner_icmp": {
+      "code": null,
+      "sequence": null,
+      "type": null
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": 6172672,
+      "desired_data_rate": null,
+      "pdu_type": 1,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP",
+    "time_epoch": 1779419343.415069,
+    "time_relative": 0.0,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 2,
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000003"
+    },
+    "info": "T-PDU",
+    "inner_icmp": {
+      "code": null,
+      "sequence": null,
+      "type": null
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": 6172672,
+      "desired_data_rate": null,
+      "pdu_type": 1,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP",
+    "time_epoch": 1779419357.584313,
+    "time_relative": 14.169244,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 3,
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00007cd5"
+    },
+    "info": "Echo (ping) request  id=0x0013, seq=1/256, ttl=64",
+    "inner_icmp": {
+      "code": 0,
+      "sequence": 1,
+      "type": 8
+    },
+    "inner_ip": {
+      "dst": "8.8.8.8",
+      "src": "10.45.0.16"
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": null,
+      "desired_data_rate": null,
+      "pdu_type": null,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP <ICMP>",
+    "time_epoch": 1779419357.592185,
+    "time_relative": 14.177116,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 4,
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00007cd5"
+    },
+    "info": "Echo (ping) request  id=0x0013, seq=1/256, ttl=64",
+    "inner_icmp": {
+      "code": 0,
+      "sequence": 1,
+      "type": 8
+    },
+    "inner_ip": {
+      "dst": "8.8.8.8",
+      "src": "10.45.0.16"
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": null,
+      "desired_data_rate": null,
+      "pdu_type": null,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP <ICMP>",
+    "time_epoch": 1779419357.592223,
+    "time_relative": 14.177154,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 5,
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000003"
+    },
+    "info": "T-PDU",
+    "inner_icmp": {
+      "code": null,
+      "sequence": null,
+      "type": null
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": 6172672,
+      "desired_data_rate": null,
+      "pdu_type": 1,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP",
+    "time_epoch": 1779419358.434645,
+    "time_relative": 15.019576,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 6,
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00007cd5"
+    },
+    "info": "Echo (ping) request  id=0x0013, seq=2/512, ttl=64",
+    "inner_icmp": {
+      "code": 0,
+      "sequence": 2,
+      "type": 8
+    },
+    "inner_ip": {
+      "dst": "8.8.8.8",
+      "src": "10.45.0.16"
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": null,
+      "desired_data_rate": null,
+      "pdu_type": null,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP <ICMP>",
+    "time_epoch": 1779419358.435442,
+    "time_relative": 15.020373,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 7,
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000003"
+    },
+    "info": "T-PDU",
+    "inner_icmp": {
+      "code": null,
+      "sequence": null,
+      "type": null
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": 6172672,
+      "desired_data_rate": null,
+      "pdu_type": 1,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP",
+    "time_epoch": 1779419359.466625,
+    "time_relative": 16.051556,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 8,
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00007cd5"
+    },
+    "info": "Echo (ping) request  id=0x0013, seq=3/768, ttl=64",
+    "inner_icmp": {
+      "code": 0,
+      "sequence": 3,
+      "type": 8
+    },
+    "inner_ip": {
+      "dst": "8.8.8.8",
+      "src": "10.45.0.16"
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": null,
+      "desired_data_rate": null,
+      "pdu_type": null,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP <ICMP>",
+    "time_epoch": 1779419359.467666,
+    "time_relative": 16.052597,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 9,
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000003"
+    },
+    "info": "T-PDU",
+    "inner_icmp": {
+      "code": null,
+      "sequence": null,
+      "type": null
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": 6172672,
+      "desired_data_rate": null,
+      "pdu_type": 1,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP",
+    "time_epoch": 1779419360.487811,
+    "time_relative": 17.072742,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 10,
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00007cd5"
+    },
+    "info": "Echo (ping) request  id=0x0013, seq=4/1024, ttl=64",
+    "inner_icmp": {
+      "code": 0,
+      "sequence": 4,
+      "type": 8
+    },
+    "inner_ip": {
+      "dst": "8.8.8.8",
+      "src": "10.45.0.16"
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": null,
+      "desired_data_rate": null,
+      "pdu_type": null,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP <ICMP>",
+    "time_epoch": 1779419360.489649,
+    "time_relative": 17.07458,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 11,
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000003"
+    },
+    "info": "T-PDU",
+    "inner_icmp": {
+      "code": null,
+      "sequence": null,
+      "type": null
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": 6172672,
+      "desired_data_rate": null,
+      "pdu_type": 1,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP",
+    "time_epoch": 1779419361.507292,
+    "time_relative": 18.092223,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "frame": 12,
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00007cd5"
+    },
+    "info": "Echo (ping) request  id=0x0013, seq=5/1280, ttl=64",
+    "inner_icmp": {
+      "code": 0,
+      "sequence": 5,
+      "type": 8
+    },
+    "inner_ip": {
+      "dst": "8.8.8.8",
+      "src": "10.45.0.16"
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "nrup": {
+      "desired_buffer_size": null,
+      "desired_data_rate": null,
+      "pdu_type": null,
+      "sequence_number": null
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "protocol": "GTP-U",
+    "protocol_stack": "GTP <ICMP>",
+    "time_epoch": 1779419361.507689,
+    "time_relative": 18.09262,
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  }
+]

@@ -1,6 +1,6 @@
 # 实施进度
 
-> 最后更新：2026-05-21
+> 最后更新：2026-05-22
 
 ## 总览
 
@@ -10,8 +10,8 @@
 | 1. Docker Compose 环境部署 | ✅ 完成 | 5GC + RAN CU-DU Split + 网络拓扑 |
 | 1.5. srsRAN ARM64 本地构建 | ✅ 完成 | Apple Silicon 原生运行，无 AVX 依赖 |
 | 2. UE 注册与 PDU Session 跑通 | ✅ 完成 | srsUE + ZMQ，UE 拿到 IP |
-| 3. 接口抓包与协议识别 | ⬜ 待开始 | |
-| 4. pcap → JSON 解析与 IE 提取 | ⬜ 待开始 | |
+| 3. 接口抓包与协议识别 | ✅ 完成 | 完整 SCTP/IP + GTP-U/UDP 帧，F1AP+NGAP+E1AP+GTP-U |
+| 4. pcap → JSON 解析与 IE 提取 | ✅ 基线完成 | F1AP/NGAP/E1AP/GTP-U 自动解析，XnAP 因单 gNB 暂缓 |
 | 5. JSON/template → pcap 重编码与验证 | ⬜ 待开始 | |
 | 6. 自动化测试生成与报告 | ⬜ 待开始 | |
 
@@ -226,40 +226,217 @@ DU 的日志文件 `/tmp/du.log` 有 145MB，GitHub 拒绝推送。已在 `.giti
 
 ### 尚未解决的问题
 
-- **E1AP 抓包**：需要在容器内装 tcpdump 或在 Docker 网络层面抓 SCTP port 38462
-- **GTP-U 抓包**：需要在 f1u_net bridge 上抓 UDP port 2152
-- **原始 SCTP/IP 帧**：srsRAN 内置 pcap 没有 IP 头，如果要做完整的协议栈分析或回放测试，需要额外抓取
+- ~~**E1AP 抓包**~~：✅ 已通过容器内 tcpdump 解决（见下方完整帧抓包）
+- ~~**GTP-U 抓包**~~：✅ 已通过 CU-UP 容器内 tcpdump 解决
+- ~~**原始 SCTP/IP 帧**~~：✅ 已通过容器内 tcpdump 获取完整帧
+
+---
+
+## 完整帧抓包实操（容器内 tcpdump 方式）
+
+> 2026-05-21
+
+阶段 3 完成报告：`reports/testcase_reports/stage3-capture-report.md`
+
+### 背景
+
+srsRAN 的内置 pcap 输出是 `exported_pdu` 格式（只有协议层内容，没有 SCTP/IP/Ethernet 头），不适合做协议栈分析和回放。需要抓取带完整网络头的原始帧。
+
+### 方案
+
+在 RAN 容器内直接安装 tcpdump，抓取经过容器网络接口的原始流量：
+
+1. **CU-CP 容器**：抓 `any` 接口的 SCTP 流量 → 覆盖 NGAP（port 38412）、E1AP（port 38462）、F1AP（port 38472）
+2. **CU-UP 容器**：抓 `any` 接口的 GTP-U 流量（UDP port 2152）
+
+### 为什么不在 Docker 网络上抓
+
+OrbStack 的 Docker 网络实现不允许 sidecar 容器看到其他容器间的流量。尝试过的方案：
+
+- **Sidecar alpine+tcpdump 容器**：加入同一 Docker 网络，但抓到的 pcap 为空（24B）
+- **宿主机 tcpdump**：OrbStack 的虚拟网络接口对宿主机不完全可见
+
+最终选择在目标容器内直接安装 tcpdump——最简单、最可靠。
+
+### 自动化操作
+
+```bash
+./scripts/capture/capture_traffic.sh run
+```
+
+这个脚本会自动：
+1. 在 CU-CP/CU-UP 容器内安装 tcpdump（如果缺失）
+2. 在 CU-CP 内抓 SCTP，输出 `ran_sctp_full.pcap`
+3. 在 CU-UP 内抓 UDP/2152，输出 `gtpu_full.pcap`
+4. 触发 `run_srsue_zmq_smoke.sh run`
+5. 尝试从 UE 的 `tun_srsue` 生成 ping 流量
+6. 停止 tcpdump 并把 pcap 拷到 `captures/raw/run_YYYYMMDD_HHMMSS/`
+
+也可以分步执行：
+
+```bash
+./scripts/capture/capture_traffic.sh start captures/raw/my_run
+./scripts/env/run_srsue_zmq_smoke.sh run
+docker exec srsue_5g_zmq ping -I tun_srsue -c 3 -W 2 8.8.8.8 || true
+./scripts/capture/capture_traffic.sh stop
+```
+
+### 抓到的内容
+
+#### SCTP（ran_sctp_full.pcap）— 265 帧
+
+| 协议 | 消息类型 | Procedure Code | 帧数 | 方向 |
+|------|---------|---------------|------|------|
+| **F1AP** | F1Setup | 1 | 2 | DU → CU-CP |
+| | InitialULRRCMessageTransfer | 11 | 1 | DU → CU-CP |
+| | ULRRCMessageTransfer | 12 | 7 | DU → CU-CP |
+| | DLRRCMessageTransfer | 13 | 9 | CU-CP → DU |
+| | UEContextSetup | 5 | 2 | CU-CP → DU |
+| | UEContextModification | 7 | 2 | CU-CP → DU |
+| | F1Removal | 26 | 2 | DU → CU-CP |
+| **NGAP** | InitialUEMessage | 20 | 2 | CU-CP → AMF |
+| | DownlinkNASTransport | 29 | 2 | AMF → CU-CP |
+| | InitialContextSetup | 4 | 3 | AMF → CU-CP |
+| | PDUSessionResourceSetup | 15 | 1 | AMF → CU-CP |
+| | PDUSessionResourceModify | 46 | 4 | AMF → CU-CP |
+| | UERadioCapabilityInfoIndication | 14 | 2 | CU-CP → AMF |
+| | NGReset | 44 | 1 | CU-CP → AMF |
+| **E1AP** | Reset | 8/9 | 2 | CU-CP ↔ CU-UP |
+| | ResetAcknowledge | 8/9 | 2 | CU-UP ↔ CU-CP |
+| | ErrorIndication | 0 | 2 | — |
+
+**关键发现**：E1AP 消息现在可以抓到了！之前 srsRAN 内置 pcap 输出 E1AP 为空，但通过容器内 tcpdump 在 SCTP 层面抓取，E1AP 消息（Reset/ResetAcknowledge）完整可见。
+
+**IP 地址可见**：
+- F1AP：10.53.1.4 (CU-CP) ↔ 10.53.1.6 (DU)
+- NGAP：10.53.1.4 (CU-CP) ↔ 10.53.1.2 (AMF)
+- E1AP：10.53.1.4 (CU-CP) ↔ 10.53.1.5 (CU-UP)
+
+#### GTP-U（gtpu_full.pcap）— 少量帧
+
+| 帧 | 源 → 目的 | TEID | 内容 |
+|----|----------|------|------|
+| 1 | 172.18.10.3 → 172.18.10.2 | 9 | GTP-U T-PDU + NRUP DL Data Delivery Status |
+| 2 | 172.18.10.3 → 172.18.10.2 | — | GTP-U T-PDU（ICMPv6 Router Solicitation） |
+| 3+ | 10.53.1.5 → 10.53.1.3 | 动态 TEID | N3 GTP-U（常见为 IPv6 Router Solicitation 或 ping 触发包） |
+
+完整的 IP/UDP/GTP 头部信息：
+- 源：172.18.10.3 (DU F1-U)，目的：172.18.10.2 (CU-UP F1-U)
+- UDP port 2152
+- GTP-U TEID=9，含 NR RAN Container 扩展头（NRUP PDU Type 1 = DL Data Delivery Status）
+
+### 注意事项
+
+1. **OrbStack 下 sidecar 抓包不可靠**：加入同一 Docker 网络的 alpine/tcpdump sidecar 经常只能得到 24B 空 pcap。目标容器内 tcpdump 已验证可抓到 SCTP 和 UDP/2152。
+2. **容器重建后 tcpdump 会丢失**：tcpdump 是临时安装在运行容器中的，如果容器被 `docker compose up --force-recreate` 重建，需要重新安装；`capture_traffic.sh` 已自动处理。
+3. **GTP-U 包数较少**：注册/PDU Session 默认只会产生少量 GTP-U。可以通过 `docker exec srsue_5g_zmq ping -I tun_srsue -c 5 8.8.8.8` 尝试生成更多用户数据。
+4. **pcap 格式是 Linux cooked-mode capture**：因为用了 `-i any`，链路层头是 SLL2 而非 Ethernet。对协议分析无影响，但回放时需要注意。
+5. **SCTP HEARTBEAT 较多**：大部分 SCTP 帧是心跳包，过滤方式：`tshark -r file.pcap -Y 'sctp.data_str'` 只看含数据的帧。
 
 ### 验证方法
+
+#### 验证 srsRAN 内置 pcap（exported_pdu 格式）
 
 ```bash
 # 1. 确认环境正常
 ./scripts/env/check_core_ready.sh
-# 期望输出: OK: 5G Core is up; SMF/UPF PFCP is associated; NGAP/E1AP/F1AP SCTP links are established.
 
 # 2. 跑一次 UE 流程
 ./scripts/env/run_srsue_zmq_smoke.sh run
-# 期望输出: OK: srsUE reached the DU over ZMQ and produced attach/session progress logs.
 
 # 3. 提取 pcap
 mkdir -p /tmp/pcap_check && docker cp srsran_cu_cp:/tmp/. /tmp/pcap_check/
 
-# 4. 验证 F1AP
+# 4. 验证 F1AP / NGAP
 tshark -r /tmp/pcap_check/cu_cp_f1ap.pcap 2>&1 | head -5
-# 应该看到 F1SetupRequest, F1SetupResponse, InitialULRRCMessageTransfer 等
-
-# 5. 验证 NGAP
 tshark -r /tmp/pcap_check/cu_cp_ngap.pcap 2>&1 | head -5
-# 应该看到 NGSetupRequest, NGSetupResponse, InitialUEMessage 等
-
-# 6. 确认无 Malformed Packet
-tshark -r /tmp/pcap_check/cu_cp_f1ap.pcap -T fields -e f1ap.procedureCode 2>&1 | grep -c .
-# 应该返回帧数（如 128），且 tshark 没有 malformed 警告
 ```
 
-## 阶段 4：pcap → JSON 解析与 IE 提取 ⬜
+#### 验证完整帧 pcap（SCTP/IP + GTP-U/UDP 格式）
 
-待开始。
+```bash
+./scripts/capture/capture_traffic.sh run captures/raw/verify_full_pcap
+RUN=captures/raw/verify_full_pcap
+
+# 5. 验证 SCTP 完整帧（应看到 IP 地址 + 协议消息）
+tshark -r $RUN/ran_sctp_full.pcap | grep -v HEARTBEAT | head -20
+# 应看到：F1Setup, NGAP InitialUEMessage, E1AP Reset, UEContextSetup 等
+
+# 6. 验证 GTP-U（应看到 UDP 2152 + GTP 头）
+tshark -r $RUN/gtpu_full.pcap
+# 应看到：GTP T-PDU，TEID=9
+
+# 7. 按 protocolCode 统计
+tshark -r $RUN/ran_sctp_full.pcap -Y f1ap -T fields -e f1ap.procedureCode | sort | uniq -c
+tshark -r $RUN/ran_sctp_full.pcap -Y ngap -T fields -e ngap.procedureCode | sort | uniq -c
+tshark -r $RUN/ran_sctp_full.pcap -Y e1ap -T fields -e e1ap.procedureCode | sort | uniq -c
+```
+
+## 阶段 4：pcap → JSON 解析与 IE 提取 ✅
+
+阶段 4 完成报告：`reports/testcase_reports/stage4-parse-report.md`
+
+### 自动化操作
+
+```bash
+./scripts/parse/run_stage4_parse.sh captures/raw/run_capture_ping_20260522_110820
+```
+
+不传目录时，脚本会自动选择 `captures/raw/run_capture_ping_*` 中最新的一次抓包：
+
+```bash
+./scripts/parse/run_stage4_parse.sh
+```
+
+这个脚本会自动：
+1. 调用 `tshark -T json` 生成原始 JSON 到 `json/tshark_raw/`
+2. 调用 `tshark -T fields` 抽取稳定字段
+3. 输出控制面归一化 JSON：`json/normalized/<run>_control_plane_packets.json`
+4. 输出用户面归一化 JSON：`json/normalized/<run>_gtpu_packets.json`
+5. 输出汇总 JSON：`json/normalized/<run>_summary.json`
+
+### 当前解析结果
+
+基于 `captures/raw/run_capture_ping_20260522_110820/`：
+
+| 输出 | 结果 |
+|------|------|
+| 控制面消息 | 42 条 |
+| F1AP | 25 条 |
+| NGAP | 13 条 |
+| E1AP | 4 条 |
+| GTP-U | 12 条 |
+| GTP-U TEID | `0x00000003`、`0x00007cd5` |
+| N3 inner ICMP | 6 条 |
+
+控制面已提取：
+- frame/time、protocol stack、info
+- IP endpoints、SCTP ports
+- procedureCode、procedure name
+- 常见 UE / session / DRB / QoS IE 字段（存在时）
+
+GTP-U 已提取：
+- outer IP、UDP ports
+- TEID、message type、extension headers
+- NR-U PDU type / buffer status
+- PDU session container type、QFI
+- inner IPv4 / ICMP 字段
+
+### 产物
+
+```bash
+json/tshark_raw/run_capture_ping_20260522_110820_ran_sctp_full.tshark.json
+json/tshark_raw/run_capture_ping_20260522_110820_gtpu_full.tshark.json
+json/normalized/run_capture_ping_20260522_110820_control_plane_packets.json
+json/normalized/run_capture_ping_20260522_110820_gtpu_packets.json
+json/normalized/run_capture_ping_20260522_110820_summary.json
+```
+
+说明：`json/tshark_raw/*.json` 是可再生成的大文件，按 `.gitignore` 不入库；`json/normalized/*.json` 是当前阶段的结构化交付物。
+
+### 边界
+
+XnAP 暂未覆盖：当前拓扑只有单 gNB，没有 Xn 接口。后续需要多 gNB/切换场景，或引入样例 XnAP pcap 后复用同一解析框架补齐。
 
 ## 阶段 5：JSON/template → pcap 重编码与验证 ⬜
 
