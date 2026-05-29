@@ -42,7 +42,7 @@
     "gtpu_inner_icmp_packets": 6,
     "gtpu_packets": 12
   },
-  "generated_at": "2026-05-22T03:29:40.661920+00:00",
+  "source_modified_at": "2026-05-22T03:09:22+00:00",
   "source_pcaps": {
     "gtpu": "captures/raw/run_capture_ping_20260522_110820/gtpu_full.pcap",
     "sctp": "captures/raw/run_capture_ping_20260522_110820/ran_sctp_full.pcap"

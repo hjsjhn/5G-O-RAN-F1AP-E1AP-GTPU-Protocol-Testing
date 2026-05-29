@@ -7,7 +7,22 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 RUN_DIR="${1:-}"
 if [[ -z "$RUN_DIR" ]]; then
-  RUN_DIR="$(find "$PROJECT_ROOT/captures/raw" -maxdepth 1 -type d -name 'run_capture_ping_*' | sort | tail -1)"
+  RUN_DIR="$(python3 - "$PROJECT_ROOT/captures/raw" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+candidates = [
+    path
+    for path in root.iterdir()
+    if path.is_dir()
+    and (path / "ran_sctp_full.pcap").is_file()
+    and (path / "gtpu_full.pcap").is_file()
+]
+if candidates:
+    print(max(candidates, key=lambda path: path.stat().st_mtime))
+PY
+  )"
 fi
 
 if [[ -z "$RUN_DIR" || ! -d "$RUN_DIR" ]]; then

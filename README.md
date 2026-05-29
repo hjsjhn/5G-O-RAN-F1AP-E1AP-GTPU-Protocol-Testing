@@ -1,6 +1,6 @@
 # 5G O-RAN F1AP/E1AP/GTPU 协议测试
 
-5G O-RAN 协议栈抓包、解析、重编码、回放与自动化测试项目，聚焦 F1AP、E1AP、XnAP 和 GTP-U。
+5G O-RAN 协议栈抓包、解析、重编码、回放与自动化测试项目，当前实验环境聚焦 F1AP、E1AP、NGAP 和 GTP-U；XnAP 需要多 gNB / Xn 场景或样例 pcap 另行补齐。
 
 ## 项目目标
 
@@ -49,11 +49,11 @@ docker/
   Dockerfile.srsran     srsRAN ARM64 构建文件
 scripts/
   env/                  环境启动/停止/重置/检查脚本
-  capture/              抓包脚本
+  capture/              容器内 tcpdump 抓包脚本
   parse/                pcap → tshark JSON → 规范化 JSON
-  encode/               JSON/模板 → 二进制 → pcap
-  replay/               报文回放/注入
-  validate/             Wireshark 解码验证、日志分析、报告生成
+  encode/               JSON/模板 → 二进制 → pcap（待实现）
+  replay/               报文回放/注入（待实现）
+  validate/             Wireshark 解码验证、日志分析、报告生成（待实现）
 json/                   tshark 原始 JSON / 规范化 JSON / 消息模板
 captures/               原始抓包 / 处理后 / 生成的 pcap
 reports/                测试用例报告 / 最终报告
@@ -63,21 +63,103 @@ docs/                   项目文档和实施进度
 
 ## 快速开始
 
+### 0. 首次准备
+
+本仓库没有 `scripts/setup.sh`。当前启动脚本会自动创建 `docker/compose/.env`，也会在本地镜像缺失时构建 `srsran/gnb:local-arm64`。
+
+如果本机还没有 `docker/srsran-src/`，先克隆 srsRAN Project 源码，因为 `docker/Dockerfile.srsran` 会从这个目录构建本地 ARM64 CU/DU/gNB 镜像：
+
 ```bash
-# 1. 准备环境（首次需要）
-./scripts/setup.sh          # 克隆依赖仓库、构建 ARM64 镜像、创建 .env
+git clone https://github.com/srsran/srsRAN_Project.git docker/srsran-src
+```
 
-# 2. 启动环境
-./scripts/env/start_env.sh  # 启动 5GC + CU-CP + CU-UP + DU
+`docker/compose/.env` 会由 `scripts/env/start_env.sh` 从 `docker/compose/.env.example` 自动生成；需要改 IMSI/Ki/OPc 或 IP 拓扑时再手动编辑。
 
-# 3. 检查状态
+### 1. 启动 5GC + srsRAN split CU/DU
+
+```bash
+./scripts/env/start_env.sh
 ./scripts/env/check_env.sh
+./scripts/env/check_core_ready.sh
+```
 
-# 4. 在 WebUI 添加 UE 订阅：http://localhost:9999 (admin/1423)
+`check_core_ready.sh` 成功时会确认：
 
-# 5. 停止并收集 pcap 和日志
+- Open5GS 5GC 容器已运行
+- SMF/UPF PFCP 已关联
+- CU-CP ↔ AMF 的 NGAP SCTP 已建立
+- CU-CP ↔ CU-UP 的 E1AP SCTP 已建立
+- DU ↔ CU-CP 的 F1AP SCTP 已建立
+
+### 2. 跑 srsUE 注册 + PDU Session
+
+```bash
+./scripts/env/run_srsue_zmq_smoke.sh run
+```
+
+这个脚本会自动：
+
+1. 检查 5GC + RAN 链路是否就绪
+2. 调用 `scripts/env/provision_subscriber.sh` 注入 UE 订阅
+3. 构建 `srsue-5g-zmq:local` 镜像（如果缺失）
+4. 重建 DU 以触发干净的 F1Setup
+5. 启动 srsUE over ZMQ
+6. 等待 `tun_srsue` 拿到 IPv4 地址
+
+常用辅助命令：
+
+```bash
+./scripts/env/run_srsue_zmq_smoke.sh logs
+./scripts/env/run_srsue_zmq_smoke.sh debug
+./scripts/env/run_srsue_zmq_smoke.sh down
+```
+
+### 3. 自动抓包
+
+```bash
+./scripts/capture/capture_traffic.sh run
+```
+
+该脚本会在目标容器内安装/启动 tcpdump：
+
+- CU-CP 容器抓 SCTP：F1AP / NGAP / E1AP
+- CU-UP 容器抓 UDP/2152：F1-U / N3 GTP-U
+- 自动运行 srsUE smoke test
+- 尝试从 UE 的 `tun_srsue` 生成 ping 流量
+- 输出到 `captures/raw/run_YYYYMMDD_HHMMSS/`
+
+也可以指定输出目录：
+
+```bash
+./scripts/capture/capture_traffic.sh run captures/raw/my_run
+```
+
+### 4. 自动解析为 JSON
+
+```bash
+./scripts/parse/run_stage4_parse.sh captures/raw/my_run
+```
+
+不传目录时会自动选择 `captures/raw/` 下最新的、同时包含 `ran_sctp_full.pcap` 和 `gtpu_full.pcap` 的抓包目录：
+
+```bash
+./scripts/parse/run_stage4_parse.sh
+```
+
+输出：
+
+- `json/tshark_raw/<run>_*.tshark.json`：原始 tshark JSON，可再生成，默认不提交
+- `json/normalized/<run>_control_plane_packets.json`：F1AP / NGAP / E1AP 归一化 JSON
+- `json/normalized/<run>_gtpu_packets.json`：GTP-U 归一化 JSON
+- `json/normalized/<run>_summary.json`：协议、procedure、TEID、flow 统计
+
+### 5. 停止环境
+
+```bash
 ./scripts/env/stop_env.sh
 ```
+
+该脚本会收集容器 pcap/log 后停止 compose 环境。完整帧抓包优先使用 `scripts/capture/capture_traffic.sh`，因为 OrbStack 下 sidecar 抓 UDP 不可靠。
 
 ## 协议接口
 
@@ -86,7 +168,7 @@ docs/                   项目文档和实施进度
 | F1-C | F1AP | F1AP/SCTP/IP | CU-CP ↔ DU 控制面 |
 | F1-U | GTP-U | GTP-U/UDP/IP | CU-UP ↔ DU 用户面 |
 | E1 | E1AP | E1AP/SCTP/IP | CU-CP ↔ CU-UP 控制面 |
-| Xn | XnAP | XnAP/SCTP/IP | gNB ↔ gNB（需多基站） |
+| Xn | XnAP | XnAP/SCTP/IP | gNB ↔ gNB（当前环境未产生，需多 gNB/Xn 场景或样例 pcap） |
 | NG-C | NGAP | NGAP/SCTP/IP | CU-CP ↔ AMF |
 | NG-U | GTP-U | GTP-U/UDP/IP | CU-UP ↔ UPF |
 
@@ -105,7 +187,23 @@ f1u_net  172.18.10.0/24  → CU-UP(.2) ↔ DU(.3) 用户面
 - Docker Compose
 - Python 3.10+
 - tshark / Wireshark
-- tcpdump（容器内抓包不需要）
+- tcpdump（抓包脚本会在 CU-CP/CU-UP 容器内按需安装）
+
+## 当前进度
+
+已完成：
+
+- 5GC + srsRAN CU/DU split 环境
+- srsUE over ZMQ 注册与 PDU Session
+- 容器内 tcpdump 完整帧抓包
+- F1AP / NGAP / E1AP / GTP-U 解析为结构化 JSON
+
+待完成：
+
+- XnAP 覆盖方案
+- JSON/template → pcap 重编码
+- 回放与验证
+- 两条完整 UE flow 的最终自动化测试报告
 
 ## 实施进度
 

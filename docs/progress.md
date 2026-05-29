@@ -382,7 +382,7 @@ tshark -r $RUN/ran_sctp_full.pcap -Y e1ap -T fields -e e1ap.procedureCode | sort
 ./scripts/parse/run_stage4_parse.sh captures/raw/run_capture_ping_20260522_110820
 ```
 
-不传目录时，脚本会自动选择 `captures/raw/run_capture_ping_*` 中最新的一次抓包：
+不传目录时，脚本会自动选择 `captures/raw/` 下最新的、同时包含 `ran_sctp_full.pcap` 和 `gtpu_full.pcap` 的抓包目录：
 
 ```bash
 ./scripts/parse/run_stage4_parse.sh

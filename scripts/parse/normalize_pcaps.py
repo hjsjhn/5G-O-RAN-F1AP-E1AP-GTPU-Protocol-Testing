@@ -316,6 +316,23 @@ def write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def stable_path(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    try:
+        return str(path.resolve().relative_to(Path.cwd().resolve()))
+    except ValueError:
+        return str(path)
+
+
+def source_modified_at(paths: Iterable[Path | None]) -> str | None:
+    existing = [path for path in paths if path and path.exists()]
+    if not existing:
+        return None
+    latest = max(path.stat().st_mtime for path in existing)
+    return datetime.fromtimestamp(latest, timezone.utc).isoformat()
+
+
 def summarize(control: list[dict], gtpu: list[dict], args: argparse.Namespace) -> dict:
     control_by_protocol = Counter(record["protocol"] for record in control)
     control_by_procedure = Counter(
@@ -329,10 +346,10 @@ def summarize(control: list[dict], gtpu: list[dict], args: argparse.Namespace) -
     gtpu_inner_icmp = sum(1 for record in gtpu if record["inner_icmp"]["type"] is not None)
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_modified_at": source_modified_at([args.sctp_pcap, args.gtpu_pcap]),
         "source_pcaps": {
-            "sctp": str(args.sctp_pcap) if args.sctp_pcap else None,
-            "gtpu": str(args.gtpu_pcap) if args.gtpu_pcap else None,
+            "sctp": stable_path(args.sctp_pcap),
+            "gtpu": stable_path(args.gtpu_pcap),
         },
         "counts": {
             "control_packets": len(control),
