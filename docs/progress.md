@@ -15,7 +15,7 @@
 | 4.5. 可复现性与并行计划调整 | ✅ 完成 | 固定 Open5GS digest，重定义 XnAP，拆分 F1/N2/replay 三条线 |
 | 5A. F1 Handover 实验线 | ⬜ 待开始 | 同 CU-CP 下双 cell / F1 handover 抓包和解析 |
 | 5B. N2 Handover 实验线 | ⬜ 待开始 | 两套 gNB/CU-DU 接同一 Open5GS，尝试 AMF-mediated handover |
-| 5C. 编码/回放/自动测例主线 | ⬜ 待开始 | JSON/template → pcap、完整 UE flow、Open5GS issue reproduction |
+| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 已在 `feature/replay-issue-dashboard` 固定 focus 和里程碑 |
 | 6. 前端展示与最终报告 | ⬜ 待开始 | dashboard + 最终演示脚本 |
 
 ## 阶段 0：仓库和文档结构 ✅
