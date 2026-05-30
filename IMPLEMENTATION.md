@@ -1,4 +1,50 @@
-下面是一份可以直接交给 agent 执行的 **项目实施文档 v1**。我按“先跑通、再抓包、再解析、再编码、再自动化”的顺序写，尽量让 agent 可以一步步推进。
+下面是一份可以直接交给 agent 执行的 **项目实施文档**。历史 v1 按“先跑通、再抓包、再解析、再编码、再自动化”的顺序写；2026-05-30 起以后续 v2 计划为准。
+
+## 2026-05-30 v2 调整
+
+阶段 0-4 已完成：baseline 环境、UE 注册/PDU Session、完整帧抓包、F1AP/NGAP/E1AP/GTP-U 解析。
+
+阶段 4.5 已完成：
+
+- Open5GS 镜像固定到 digest，容器内版本为 `Open5GS daemon v2.7.6-131-g782a97e`。
+- XnAP 完整 inter-gNB handover 不作为运行环境目标；XnAP 改为离线解析/构造，不要求 replay。
+- Handover 实验与编码/回放/完整 UE flow 测试并行推进。
+- baseline 保持稳定，新增实验环境使用 compose overlay 或 scenario 脚本。
+
+后续并行任务：
+
+```text
+阶段 5A：F1 Handover 实验线
+  - 同 CU-CP 下双 cell / F1 handover
+  - 抓 F1/RRC/NGAP handover 相关信令
+  - 输出 pcap、normalized JSON、支持边界报告
+
+阶段 5B：N2 Handover 实验线
+  - 两套 gNB/CU-DU 接入同一 Open5GS
+  - 尝试 AMF-mediated handover
+  - 输出 N2/NGAP 抓包、解析结果、支持边界报告
+
+阶段 5C：编码/回放/自动测例主线
+  - JSON/template → pcap
+  - GTP-U 和至少 5 类控制面消息可被 tshark/Wireshark 识别
+  - 两条完整 UE flow 自动化测试
+  - Open5GS v2.7.6 issue-driven bug reproduction 和安全分析
+
+阶段 6：前端展示与最终报告
+  - dashboard 左侧展示信令 timeline / JSON
+  - dashboard 右侧展示环境实时 log / testcase 输出
+  - 整合最终报告和演示脚本
+```
+
+建议开发分支：
+
+```text
+feature/f1-handover
+feature/n2-handover
+feature/replay-issue-dashboard
+```
+
+协作约束见 `docs/collaboration.md`。下面的历史计划作为背景参考；若与 v2 冲突，以本节为准。
 
 ---
 
@@ -1226,4 +1272,3 @@ XnAP / handover / 真实手机
 [2]: https://github.com/srsran/srsRAN_Project/blob/main/docker/README.md "srsRAN_Project/docker/README.md at main · srsran/srsRAN_Project · GitHub"
 [3]: https://docs.srsran.com/projects/project/en/latest/tutorials/source/srsUE/source/index.html "srsRAN gNB with srsUE — srsRAN Project  documentation"
 [4]: https://nuradioconcepts.io/2026/02/20/ocudu-docker-split-7-2-deployment/ "OCUDU Docker Split Deployment"
-

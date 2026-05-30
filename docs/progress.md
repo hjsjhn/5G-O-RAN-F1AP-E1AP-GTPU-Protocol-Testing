@@ -1,25 +1,28 @@
 # 实施进度
 
-> 最后更新：2026-05-22
+> 最后更新：2026-05-30
 
 ## 总览
 
 | 阶段 | 状态 | 说明 |
 |------|------|------|
-| 0. 仓库和文档结构 | ✅ 完成 | GitHub 仓库、目录结构、CLAUDE.md |
+| 0. 仓库和文档结构 | ✅ 完成 | GitHub 仓库、目录结构、README、协作文档 |
 | 1. Docker Compose 环境部署 | ✅ 完成 | 5GC + RAN CU-DU Split + 网络拓扑 |
 | 1.5. srsRAN ARM64 本地构建 | ✅ 完成 | Apple Silicon 原生运行，无 AVX 依赖 |
 | 2. UE 注册与 PDU Session 跑通 | ✅ 完成 | srsUE + ZMQ，UE 拿到 IP |
 | 3. 接口抓包与协议识别 | ✅ 完成 | 完整 SCTP/IP + GTP-U/UDP 帧，F1AP+NGAP+E1AP+GTP-U |
-| 4. pcap → JSON 解析与 IE 提取 | ✅ 基线完成 | F1AP/NGAP/E1AP/GTP-U 自动解析，XnAP 因单 gNB 暂缓 |
-| 5. JSON/template → pcap 重编码与验证 | ⬜ 待开始 | |
-| 6. 自动化测试生成与报告 | ⬜ 待开始 | |
+| 4. pcap → JSON 解析与 IE 提取 | ✅ 基线完成 | F1AP/NGAP/E1AP/GTP-U 自动解析 |
+| 4.5. 可复现性与并行计划调整 | ✅ 完成 | 固定 Open5GS digest，重定义 XnAP，拆分 F1/N2/replay 三条线 |
+| 5A. F1 Handover 实验线 | ⬜ 待开始 | 同 CU-CP 下双 cell / F1 handover 抓包和解析 |
+| 5B. N2 Handover 实验线 | ⬜ 待开始 | 两套 gNB/CU-DU 接同一 Open5GS，尝试 AMF-mediated handover |
+| 5C. 编码/回放/自动测例主线 | ⬜ 待开始 | JSON/template → pcap、完整 UE flow、Open5GS issue reproduction |
+| 6. 前端展示与最终报告 | ⬜ 待开始 | dashboard + 最终演示脚本 |
 
 ## 阶段 0：仓库和文档结构 ✅
 
 - [x] 创建 GitHub 仓库 `5G-O-RAN-F1AP-E1AP-GTPU-Protocol-Testing`
 - [x] 建立目录结构（docker/, scripts/, captures/, json/, reports/, tests/）
-- [x] 编写 CLAUDE.md、中文 README.md、.gitignore
+- [x] 编写中文 README.md、.gitignore、协作文档；AI agent 本地指南只在本机保留
 - [x] 创建环境管理脚本（start/stop/reset/check）
 
 ## 阶段 1：Docker Compose 环境部署 ✅
@@ -436,15 +439,119 @@ json/normalized/run_capture_ping_20260522_110820_summary.json
 
 ### 边界
 
-XnAP 暂未覆盖：当前拓扑只有单 gNB，没有 Xn 接口。后续需要多 gNB/切换场景，或引入样例 XnAP pcap 后复用同一解析框架补齐。
+XnAP 暂未覆盖：当前稳定 baseline 不产生 XnAP。阶段 4.5 后，XnAP 改为离线解析/构造展示，不要求当前运行环境产生 XnAP 或执行 XnAP replay。
 
-## 阶段 5：JSON/template → pcap 重编码与验证 ⬜
+## 阶段 4.5：可复现性与并行计划调整 ✅
 
-待开始。
+阶段 4.5 完成报告：`reports/testcase_reports/stage4.5-plan-report.md`
 
-## 阶段 6：自动化测试生成与报告 ⬜
+### 已调整内容
 
-待开始。
+- Open5GS 镜像从滚动 `master` 固定到 digest：
+
+```text
+ghcr.io/herlesupreeth/docker_open5gs@sha256:68247a557ae8e2a46beca39bceb06d63d0c3daebb9f6b95312be9384461154c1
+```
+
+容器内版本：
+
+```text
+Open5GS daemon v2.7.6-131-g782a97e
+```
+
+- XnAP 完整 inter-gNB handover 不再作为当前运行环境目标。
+- XnAP 改为离线解析/构造展示：可使用样例 pcap 或构造消息，不要求 replay。
+- Handover 实验不阻塞编码/回放/完整 UE flow 测试。
+- 后续拆成三条并行任务线：F1 Handover、N2 Handover、Replay/Issue/Dashboard。
+
+### Git 协作
+
+建议从 `main` 切三条分支：
+
+```text
+feature/f1-handover
+feature/n2-handover
+feature/replay-issue-dashboard
+```
+
+分支只用于开发隔离。最终交付仍合并回 `main`，通过 compose overlay 或 scenario 脚本运行不同环境。
+
+协作约束见：`docs/collaboration.md`
+
+### Compose 规划
+
+baseline 保持当前结构：
+
+```bash
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.split.yml up -d
+```
+
+新增实验环境使用 overlay，不直接破坏 baseline：
+
+```text
+docker/compose/docker-compose.f1-ho.yml
+docker/compose/docker-compose.n2-ho.yml
+```
+
+后续目标命令：
+
+```bash
+./scripts/env/start_env.sh baseline
+./scripts/env/start_env.sh f1-ho
+./scripts/env/start_env.sh n2-ho
+```
+
+## 阶段 5A：F1 Handover 实验线 ⬜
+
+目标：
+
+- 优先尝试同一个 CU-CP 下双 cell，减少 baseline 改动。
+- 抓 F1/RRC/NGAP handover 相关信令。
+- 若双 cell 不足以触发目标流程，再评估同 CU-CP 下多 DU。
+
+交付：
+
+- F1 handover 实验配置。
+- pcap 和 normalized JSON。
+- 支持边界报告。
+
+## 阶段 5B：N2 Handover 实验线 ⬜
+
+目标：
+
+- 两套 gNB/CU-DU 接入同一个 Open5GS。
+- 尝试通过 AMF/NGAP 观察 N2 handover 相关流程。
+- 若完整流程不可行，记录支持边界和可观察到的 NGAP 消息。
+
+交付：
+
+- N2 handover overlay 配置。
+- N2/NGAP 抓包和解析报告。
+- 支持边界报告。
+
+## 阶段 5C：编码/回放/自动测例主线 ⬜
+
+目标：
+
+- 基于现有 baseline pcap 做 JSON/template → pcap。
+- GTP-U 和至少 5 类控制面消息可被 tshark/Wireshark 识别。
+- 两条完整 UE flow 自动化测试不依赖 handover。
+- 调研 Open5GS v2.7.6 相关 issue，设计重放/变异测试做 bug reproduction 和安全分析。
+
+XnAP 范围：
+
+- 只做离线解析/构造。
+- 不要求当前环境产生 XnAP。
+- 不要求 XnAP replay。
+
+## 阶段 6：前端展示与最终报告 ⬜
+
+目标：
+
+- 前端 dashboard 展示项目能力。
+- 左侧展示信令 timeline、解析结果和 normalized JSON。
+- 右侧展示实验环境实时日志、testcase 输出和 issue reproduction 结果。
+- 输出最终报告和演示脚本。
 
 ---
 
@@ -482,7 +589,7 @@ f1u_net  172.18.10.0/24  CU-UP(.2) ↔ DU(.3) F1-U 用户面
 ### Docker 镜像
 
 ```
-ghcr.io/herlesupreeth/docker_open5gs:master  (amd64, Rosetta)  5GC NF
+ghcr.io/herlesupreeth/docker_open5gs@sha256:68247a557ae8e2a46beca39bceb06d63d0c3daebb9f6b95312be9384461154c1  (amd64, Rosetta; Open5GS v2.7.6-131-g782a97e)  5GC NF
 mongo:6.0                                     (multi-arch)      MongoDB
 srsran/gnb:local-arm64                        (arm64 native)    CU-CP/CU-UP/DU
 srsue-5g-zmq:local                            (arm64 native)    srsUE

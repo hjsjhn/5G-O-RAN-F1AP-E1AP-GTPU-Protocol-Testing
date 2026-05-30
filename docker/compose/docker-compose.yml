@@ -4,7 +4,8 @@
 
 x-open5gs-common: &open5gs-common
   platform: linux/amd64
-  image: ghcr.io/herlesupreeth/docker_open5gs:master
+  # Fixed for reproducible tests. Container reports: Open5GS daemon v2.7.6-131-g782a97e.
+  image: ghcr.io/herlesupreeth/docker_open5gs@sha256:68247a557ae8e2a46beca39bceb06d63d0c3daebb9f6b95312be9384461154c1
   env_file:
     - .env
   volumes:

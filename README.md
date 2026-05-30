@@ -1,6 +1,6 @@
 # 5G O-RAN F1AP/E1AP/GTPU 协议测试
 
-5G O-RAN 协议栈抓包、解析、重编码、回放与自动化测试项目，当前实验环境聚焦 F1AP、E1AP、NGAP 和 GTP-U；XnAP 需要多 gNB / Xn 场景或样例 pcap 另行补齐。
+5G O-RAN 协议栈抓包、解析、重编码、回放与自动化测试项目。当前稳定 baseline 聚焦 F1AP、E1AP、NGAP 和 GTP-U；XnAP 完整 handover 不作为运行环境目标，改为离线解析/构造展示。
 
 ## 项目目标
 
@@ -34,7 +34,7 @@ srsUE <--ZMQ--> DU  |  (NGAP) |         | (GTP-U) |<------>|  SMF    |
 
 所有组件基于 Docker Compose 部署，DU 使用 ZeroMQ 模拟空口（无需 SDR 硬件）。
 
-- **核心网：** Open5GS（[herlesupreeth/docker_open5gs](https://github.com/herlesupreeth/docker_open5gs) 预构建镜像）
+- **核心网：** Open5GS（固定 `ghcr.io/herlesupreeth/docker_open5gs@sha256:68247a557ae8e2a46beca39bceb06d63d0c3daebb9f6b95312be9384461154c1`，容器内版本 `v2.7.6-131-g782a97e`）
 - **RAN：** srsRAN Project CU-DU Split（本地 ARM64 构建 / amd64 预构建镜像）
 - **UE：** srsUE + ZMQ
 
@@ -60,6 +60,20 @@ reports/                测试用例报告 / 最终报告
 tests/                  pytest 测试
 docs/                   项目文档和实施进度
 ```
+
+## 协作方式
+
+baseline 保持稳定，F1 Handover、N2 Handover、重放/前端/issue 分析并行推进。协作约定见 [docs/collaboration.md](docs/collaboration.md)。
+
+建议从 `main` 切三条工作线：
+
+```text
+feature/f1-handover
+feature/n2-handover
+feature/replay-issue-dashboard
+```
+
+最终交付不依赖 checkout 不同分支运行实验；不同场景应合并为 compose overlay 或 scenario 脚本。
 
 ## 快速开始
 
@@ -168,7 +182,7 @@ git clone https://github.com/srsran/srsRAN_Project.git docker/srsran-src
 | F1-C | F1AP | F1AP/SCTP/IP | CU-CP ↔ DU 控制面 |
 | F1-U | GTP-U | GTP-U/UDP/IP | CU-UP ↔ DU 用户面 |
 | E1 | E1AP | E1AP/SCTP/IP | CU-CP ↔ CU-UP 控制面 |
-| Xn | XnAP | XnAP/SCTP/IP | gNB ↔ gNB（当前环境未产生，需多 gNB/Xn 场景或样例 pcap） |
+| Xn | XnAP | XnAP/SCTP/IP | 当前只做离线解析/构造，不要求环境产生或回放 |
 | NG-C | NGAP | NGAP/SCTP/IP | CU-CP ↔ AMF |
 | NG-U | GTP-U | GTP-U/UDP/IP | CU-UP ↔ UPF |
 
@@ -200,10 +214,10 @@ f1u_net  172.18.10.0/24  → CU-UP(.2) ↔ DU(.3) 用户面
 
 待完成：
 
-- XnAP 覆盖方案
-- JSON/template → pcap 重编码
-- 回放与验证
-- 两条完整 UE flow 的最终自动化测试报告
+- F1 Handover 实验线：同 CU-CP 下双 cell / F1 handover 抓包和报告
+- N2 Handover 实验线：两套 gNB/CU-DU 接入同一 Open5GS 的 AMF-mediated handover 调研和抓包
+- 编码/回放/自动测例主线：JSON/template → pcap、完整 UE flow 测例、Open5GS issue reproduction
+- 前端 dashboard：左侧信令解析/JSON，右侧实时日志/testcase 输出
 
 ## 实施进度
 
