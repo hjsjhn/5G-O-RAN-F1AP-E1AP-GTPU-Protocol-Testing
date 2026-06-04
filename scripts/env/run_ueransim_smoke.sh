@@ -16,10 +16,11 @@ IMAGE=docker_ueransim:latest
 
 usage() {
   cat <<EOF
-Usage: $0 [run|down|logs|check]
+Usage: $0 [run|gnb|down|logs|check]
 
 Commands:
   run    Build image if needed, start UERANSIM gNB + UE, and verify registration/PDU session.
+  gnb    Start only the UERANSIM gNB; supports opt-in testcase environment overrides.
   check  Verify an already-running UERANSIM smoke test.
   logs   Show gNB and UE logs.
   down   Remove UERANSIM smoke-test containers.
@@ -49,6 +50,12 @@ load_env() {
   : "${UE1_AMF:?missing UE1_AMF}"
   : "${UE1_IMEI:?missing UE1_IMEI}"
   : "${UE1_IMEISV:?missing UE1_IMEISV}"
+
+  EFFECTIVE_TAC="${UERANSIM_TAC_OVERRIDE:-$TAC}"
+  if [[ ! "$EFFECTIVE_TAC" =~ ^[0-9]+$ ]] || (( EFFECTIVE_TAC > 16777215 )); then
+    echo "Invalid UERANSIM_TAC_OVERRIDE: $EFFECTIVE_TAC" >&2
+    exit 2
+  fi
 }
 
 require_core_ready() {
@@ -78,6 +85,7 @@ run_gnb() {
     --privileged \
     --cap-add NET_ADMIN \
     --env-file "$ENV_FILE" \
+    -e EFFECTIVE_TAC="$EFFECTIVE_TAC" \
     -e COMPONENT_NAME=ueransim-gnb \
     -v "$UERANSIM_DIR:/mnt/ueransim" \
     "$IMAGE" /bin/bash -lc '
@@ -85,7 +93,7 @@ run_gnb() {
       cp /mnt/ueransim/${COMPONENT_NAME}.yaml /UERANSIM/config/${COMPONENT_NAME}.yaml
       sed -i "s|MNC|${MNC}|g" /UERANSIM/config/${COMPONENT_NAME}.yaml
       sed -i "s|MCC|${MCC}|g" /UERANSIM/config/${COMPONENT_NAME}.yaml
-      sed -i "s|TAC|${TAC}|g" /UERANSIM/config/${COMPONENT_NAME}.yaml
+      sed -i "s|TAC|${EFFECTIVE_TAC}|g" /UERANSIM/config/${COMPONENT_NAME}.yaml
       sed -i "s|NR_GNB_IP|${NR_GNB_IP}|g" /UERANSIM/config/${COMPONENT_NAME}.yaml
       sed -i "s|AMF_IP|${AMF_IP}|g" /UERANSIM/config/${COMPONENT_NAME}.yaml
       exec ./nr-gnb -c ../config/${COMPONENT_NAME}.yaml
@@ -163,6 +171,14 @@ case "$cmd" in
     sleep 3
     run_ue
     check_smoke
+    ;;
+  gnb)
+    load_env
+    require_core_ready
+    build_image
+    remove_containers
+    run_gnb
+    echo "Started UERANSIM gNB-only testcase endpoint with TAC=${EFFECTIVE_TAC}."
     ;;
   check)
     check_smoke

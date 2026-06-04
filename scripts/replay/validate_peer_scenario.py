@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate F1AP/E1AP peer recognition and responses from controlled UE flows."""
+"""Audit normal UE flow evidence without claiming generated-testcase replay."""
 
 from __future__ import annotations
 
@@ -54,21 +54,26 @@ def validate_target(target: tuple[str, str, str, str, str, str], contexts: dict[
     protocol, request, response, receiver, initiator, context_name = target
     context = contexts[context_name]
     l2 = captured(context["control"], protocol, request)
-    l3 = l2 and log_has(context["logs"], receiver, "Rx", request)
+    peer_observed = l2 and log_has(context["logs"], receiver, "Rx", request)
     response_captured = captured(context["control"], protocol, response)
     response_received = log_has(context["logs"], initiator, "Rx", response)
-    l4 = l3 and response_captured and response_received
+    natural_flow_advanced = peer_observed and response_captured and response_received
     return {
         "protocol": protocol,
         "message": request,
         "peer": receiver,
         "expected_response": response,
-        "levels": {"L1": True, "L2": l2, "L3": l3, "L4": l4},
+        "classification": "normal_ue_flow_observation_not_generated_testcase_replay",
+        "levels": {"L1": False, "L2": l2, "L3": False, "L4": False},
         "evidence": {
             "target_captured": l2,
-            "peer_rx_log": l3,
+            "peer_rx_log": peer_observed,
             "response_captured": response_captured,
             "initiator_rx_response_log": response_received,
+            "natural_flow_state_advanced": natural_flow_advanced,
+            "generated_case_id": None,
+            "generated_payload_sha256": None,
+            "send_time": None,
         },
     }
 
@@ -87,8 +92,8 @@ def write_markdown(path: Path, result: dict) -> None:
     for case in result["control_cases"]:
         lines.append(
             f"| {case['protocol']} | {case['message']} | {case['peer']} | "
-            f"{'PASS' if case['levels']['L3'] else 'FAIL'} | "
-            f"{'PASS' if case['levels']['L4'] else 'FAIL'} | {case['expected_response']} |"
+            "NOT CLAIMED | NOT CLAIMED | "
+            f"{case['expected_response']} |"
         )
     gtpu = result["gtpu"]
     lines.extend(
@@ -122,12 +127,11 @@ def main(argv: list[str]) -> int:
     }
     control_cases = [validate_target(target, contexts) for target in TARGETS]
     gtpu = read_json(args.pdu_result_dir / "live_gtpu_result.json")
-    passed = all(case["levels"]["L3"] and case["levels"]["L4"] for case in control_cases)
-    passed = passed and gtpu["levels"]["L3"] and gtpu["levels"]["L4"]
+    passed = False
     result = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "result": "PASS" if passed else "FAIL",
+        "result": "NOT_A_REPLAY_VALIDATION",
         "flows": {"pdu": args.pdu_result_dir.name, "release": args.release_result_dir.name},
         "control_cases": control_cases,
         "gtpu": gtpu,
@@ -135,9 +139,9 @@ def main(argv: list[str]) -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(args.output.with_suffix(".md"), result)
-    print(f"[{result['result']}] Stage 5C.4 peer validation")
+    print(f"[{result['result']}] normal flow evidence audit")
     print(args.output)
-    return 0 if passed else 1
+    return 1
 
 
 if __name__ == "__main__":

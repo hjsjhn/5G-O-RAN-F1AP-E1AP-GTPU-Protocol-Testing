@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ipaddress
 import json
 import re
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from encode_gtpu import build_ethernet, build_ipv4, write_pcap
 
 
 CU_UP = "srsran_cu_up"
@@ -110,44 +114,103 @@ def current_session() -> dict:
     }
 
 
-def send_from_upf(session: dict) -> None:
+def checksum(data: bytes) -> int:
+    if len(data) % 2:
+        data += b"\0"
+    total = sum(struct.unpack(f"!{len(data) // 2}H", data))
+    total = (total & 0xFFFF) + (total >> 16)
+    total = (total & 0xFFFF) + (total >> 16)
+    return (~total) & 0xFFFF
+
+
+def build_gtpu_payload(session: dict) -> bytes:
+    src = ipaddress.IPv4Address(SOURCE_INNER_IP).packed
+    dst = ipaddress.IPv4Address(session["ue_ip"]).packed
+    body = b"STAGE5C4-LIVE-GTPU"
+    icmp_header = struct.pack("!BBHHH", 0, 0, 0, 0x5C04, 1)
+    icmp = struct.pack("!BBHHH", 0, 0, checksum(icmp_header + body), 0x5C04, 1) + body
+    ip_header = struct.pack(
+        "!BBHHHBBH4s4s", 0x45, 0, 20 + len(icmp), 0x5C04, 0, 64, 1, 0, src, dst
+    )
+    ip_header = ip_header[:10] + struct.pack("!H", checksum(ip_header)) + ip_header[12:]
+    inner = ip_header + icmp
+    teid = int(session["downlink_teid"], 0)
+    gtpu = struct.pack("!BBHI", 0x34, 0xFF, 8 + len(inner), teid)
+    return gtpu + b"\0\0\0\x85\x01\x00" + bytes([session["qfi"]]) + b"\0" + inner
+
+
+def send_from_upf(session: dict, payload: bytes) -> None:
     sender = r"""
-import ipaddress
 import socket
-import struct
 import sys
 
 config = __import__("json").loads(sys.stdin.read())
-
-def checksum(data):
-    if len(data) % 2:
-        data += b"\0"
-    total = sum(struct.unpack("!%dH" % (len(data) // 2), data))
-    total = (total & 0xffff) + (total >> 16)
-    total = (total & 0xffff) + (total >> 16)
-    return (~total) & 0xffff
-
-src = ipaddress.IPv4Address(config["source_inner_ip"]).packed
-dst = ipaddress.IPv4Address(config["ue_ip"]).packed
-body = b"STAGE5C4-LIVE-GTPU"
-icmp_header = struct.pack("!BBHHH", 0, 0, 0, 0x5c04, 1)
-icmp = struct.pack("!BBHHH", 0, 0, checksum(icmp_header + body), 0x5c04, 1) + body
-ip_header = struct.pack("!BBHHHBBH4s4s", 0x45, 0, 20 + len(icmp), 0x5c04, 0, 64, 1, 0, src, dst)
-ip_header = ip_header[:10] + struct.pack("!H", checksum(ip_header)) + ip_header[12:]
-inner = ip_header + icmp
-teid = int(config["downlink_teid"], 0)
-gtpu = struct.pack("!BBHI", 0x34, 0xff, 8 + len(inner), teid)
-gtpu += b"\0\0\0\x85\x01\x00" + bytes([config["qfi"]]) + b"\0" + inner
+gtpu = bytes.fromhex(config["payload_hex"])
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.sendto(gtpu, (config["cu_up_endpoint"], 2152))
 print(len(gtpu))
 """
-    payload = dict(session)
-    payload["source_inner_ip"] = SOURCE_INNER_IP
-    run(["docker", "exec", "-i", UPF, "python3", "-c", sender], input_text=json.dumps(payload))
+    config = {"cu_up_endpoint": session["cu_up_endpoint"], "payload_hex": payload.hex()}
+    run(["docker", "exec", "-i", UPF, "python3", "-c", sender], input_text=json.dumps(config))
 
 
-def wait_for_evidence(cu_up_before: int, ue_before: int, session: dict) -> dict:
+def verify_l2(session: dict, payload: bytes) -> dict:
+    udp = struct.pack("!HHHH", 2152, 2152, 8 + len(payload), 0) + payload
+    outer = build_ipv4(
+        {
+            "src": session["upf_endpoint"],
+            "dst": session["cu_up_endpoint"],
+            "ttl": 64,
+            "identification": "0x5c04",
+        },
+        17,
+        udp,
+    )
+    packet = build_ethernet(
+        {"src": "02:00:00:00:00:03", "dst": "02:00:00:00:00:05"},
+        outer,
+    )
+    with tempfile.TemporaryDirectory(prefix="stage5c4-gtpu-l2-") as directory:
+        pcap = Path(directory) / "generated.pcap"
+        write_pcap(pcap, [packet])
+        recognized = run(
+            [
+                "tshark",
+                "-r",
+                str(pcap),
+                "-Y",
+                f"gtp && gtp.teid == {int(session['downlink_teid'], 0)}",
+                "-T",
+                "fields",
+                "-e",
+                "gtp.teid",
+            ],
+            check=False,
+        )
+        malformed = run(
+            [
+                "tshark",
+                "-r",
+                str(pcap),
+                "-Y",
+                "_ws.malformed",
+                "-T",
+                "fields",
+                "-e",
+                "frame.number",
+            ],
+            check=False,
+        )
+    teids = [line for line in recognized.splitlines() if line]
+    malformed_frames = [line for line in malformed.splitlines() if line]
+    return {
+        "protocol_and_teid_recognized": bool(teids),
+        "malformed_frames": malformed_frames,
+        "passed": bool(teids) and not malformed_frames,
+    }
+
+
+def wait_for_evidence(cu_up_before: int, ue_before: int, session: dict) -> tuple[dict, dict]:
     teid = session["downlink_teid"].lower()
     evidence = {"l3_peer_recognition": False, "l4_state_advance": False, "ue_received": False}
     for _ in range(30):
@@ -164,9 +227,21 @@ def wait_for_evidence(cu_up_before: int, ue_before: int, session: dict) -> dict:
         )
         evidence["ue_received"] = "RX PDU" in ue_new
         if all(evidence.values()):
-            return evidence
+            break
         time.sleep(0.2)
-    return evidence
+    peer_receive_log = [
+        line for line in cu_up_lines if f"dl teid={teid}: rx sdu" in line.lower()
+    ]
+    state_log = [
+        line for line in cu_up_lines if "PDCP" in line or "DL: TX PDU" in line or "TX PDU" in line
+    ][-12:]
+    ue_receive_log = [line for line in ue_lines if "RX PDU" in line][-12:]
+    return evidence, {
+        "peer_receive_log": peer_receive_log,
+        "state_advance_log": state_log,
+        "ue_receive_log": ue_receive_log,
+        "response_message": "CU-UP PDCP/F1-U transmit and UE RX PDU" if evidence["ue_received"] else None,
+    }
 
 
 def write_result(path: Path, result: dict) -> None:
@@ -191,14 +266,19 @@ def main(argv: list[str]) -> int:
     for container in (CU_UP, UPF, UE):
         require_running(container)
     session = current_session()
+    payload = build_gtpu_payload(session)
+    l2 = verify_l2(session, payload)
     result = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "mode": "live" if args.live else "dry-run",
         "protocol": "GTP-U",
+        "case_id": "gtpu_generated_current_session_downlink",
+        "generated_payload_sha256": hashlib.sha256(payload).hexdigest(),
+        "generated_payload_length": len(payload),
         "session": session,
-        "levels": {"L1": True, "L2": True, "L3": False, "L4": False},
-        "checks": {},
+        "levels": {"L1": True, "L2": l2["passed"], "L3": False, "L4": False},
+        "checks": {"l2_tshark": l2},
     }
     if not args.live:
         result["checks"]["safety"] = "PASS: no packet sent; use --live only in the local isolated environment"
@@ -209,13 +289,15 @@ def main(argv: list[str]) -> int:
     run(["./scripts/env/check_core_ready.sh"])
     cu_up_before = len(combined_logs(CU_UP).splitlines())
     ue_before = len(combined_logs(UE).splitlines())
-    send_from_upf(session)
-    evidence = wait_for_evidence(cu_up_before, ue_before, session)
+    result["send_time"] = datetime.now(timezone.utc).isoformat()
+    send_from_upf(session, payload)
+    evidence, trace = wait_for_evidence(cu_up_before, ue_before, session)
     run(["./scripts/env/check_core_ready.sh"])
-    result["checks"] = evidence
+    result["checks"].update(evidence)
+    result["evidence"] = trace
     result["levels"]["L3"] = evidence["l3_peer_recognition"]
     result["levels"]["L4"] = evidence["l4_state_advance"] and evidence["ue_received"]
-    result["result"] = "PASS" if result["levels"]["L4"] else "FAIL"
+    result["result"] = "PASS" if all(result["levels"].values()) else "FAIL"
     write_result(args.output, result)
     print(f"[{result['result']}] GTP-U live replay {session['upf_endpoint']} -> {session['cu_up_endpoint']}")
     print(args.output)

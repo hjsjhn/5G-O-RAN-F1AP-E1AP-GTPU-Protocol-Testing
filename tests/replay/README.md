@@ -33,8 +33,9 @@ Stage 5C.3 also contains reproducibly constructed XnAP templates:
 tests/replay/templates/stage5c3/xnap/
 ```
 
-Rebuild them with the local ignored `docker/srsran-src` tree and compare the
-generated APER payloads with the committed templates:
+Rebuild them with the pinned local ignored `docker/srsran-src` tree and pinned
+builder digest, then compare the generated APER payloads with the committed
+templates:
 
 ```bash
 ./scripts/replay/check_xnap_template_generation.sh
@@ -60,34 +61,42 @@ Required top-level fields:
 
 For GTP-U cases, `packet` describes Ethernet, outer IPv4, UDP, GTP-U, inner IPv4, and ICMP echo fields. Integer fields may use decimal numbers or strings such as `0x00007cd5`.
 
-For SCTP application protocols, `template` supplies the legal APER payload,
-direction, ports, stream, TSN, and PPID. The encoder rebuilds
-Ethernet/IPv4/SCTP/DATA and verifies that the payload can be read back exactly.
+For F1AP/E1AP cases, `template` supplies a traceable captured APER message and
+transport metadata. `structured_ies` records decoded source values and
+`mutation` selects a key IE and replacement value. The pinned srsRAN ASN.1
+implementation decodes, modifies the typed IE, and re-encodes APER before the
+Ethernet/IPv4/SCTP packet is built.
 
 The runner writes one packet per testcase and checks:
 
 - the expected tshark fields and packet count;
 - no `_ws.malformed` packet;
-- exact APER payload round-trip for control messages;
-- Stage 4 normalized protocol, procedure code, and procedure name.
+- generated APER payload round-trip and proof that mutation changes its hash;
+- Stage 4 normalized protocol, procedure, and mutated key IE.
 
 This runner proves L1/L2 offline encoding only. It does not claim L3 peer
 recognition or L4 state-machine advancement.
 
 ## Live Peer Validation
 
-Stage 5C.4 live validation is a separate, default-dry-run entry:
+The Stage 5C.4 live entry is default-dry-run:
 
 ```bash
 ./scripts/replay/run_live_peer_validation.sh --dry-run
 ./scripts/replay/run_live_peer_validation.sh --live
 ```
 
-`--live` is restricted to the local isolated Docker environment. It uses real
-controlled UE flows for F1AP/E1AP peer recognition, the current active
-endpoint/TEID for GTP-U, and UERANSIM as a protocol-aware NGAP/Open5GS test
-endpoint. It records L3 only from receiver-side component logs and L4 only when
-the expected response or state-machine advance is also observed.
+`--live` is restricted to the local isolated Docker environment. It runs
+generated F1AP/E1AP testcases through a protocol-aware SCTP endpoint, dynamic
+GTP-U replay, and an explicitly selected NGAP/Open5GS mutation case. Results
+associate control cases with payload hash, per-payload tshark L2 evidence, send
+time, CU-CP receive log, and response. The dynamic GTP-U payload receives the
+same L2 check before transmission. Normal UE flows and a plain UERANSIM smoke
+test are not counted as generated-testcase replay L3/L4.
+
+The selected generated control cases and their expected procedures/responses
+are declared in `tests/replay/live_cases/control_peer_cases.json`. NGAP smoke
+and mutation inputs are declared separately under `tests/replay/ngap_cases/`.
 
 The two UE flow commands retain their existing default behavior. GTP-U live
 injection is opt-in through the Stage 5C.4 runner.

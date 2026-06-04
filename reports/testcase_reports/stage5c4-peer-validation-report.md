@@ -1,69 +1,84 @@
-# 阶段 5C.4：多协议真实对端验收报告
+# 阶段 5C.4：多协议真实对端验证报告
 
 > 日期：2026-06-04
 
 ## 结论
 
-Stage 5C.4 验收通过。以下默认 dry-run、显式 live 的统一入口已实际运行：
+Stage 5C.4 验收通过。统一入口默认 dry-run，显式 live 模式实际完成：
 
 ```bash
 ./scripts/replay/run_live_peer_validation.sh --dry-run
 ./scripts/replay/run_live_peer_validation.sh --live
 ```
 
-最终 live run 完成两条受控 UE flow、动态 GTP-U replay 和 NGAP/Open5GS
-协议测试，结束后 baseline 健康检查通过。
+live 模式使用独立协议感知 SCTP 测试端，在隔离场景中临时替代 DU/CU-UP，
+发送本次生成的 F1AP/E1AP testcase。结果按 case ID 关联 payload SHA-256、
+发送时间、CU-CP 接收日志和响应；正常 UE flow 中自然产生的消息未计入控制面
+replay L3/L4。
 
-## 严格等级结果
+## F1AP/E1AP 真实对端结果
 
-| 协议/消息 | 真实接收对端 | L3 | L4 证据 |
+真实对端：srsRAN CU-CP。验收 run 中 6 个生成 case 有 5 个达到 L3；F1AP 和
+E1AP 各有一个达到 L4。六个 live 生成 payload 还分别构造临时 pcap，经 tshark
+确认协议/procedure 正确且非 malformed，因此均达到 L2。
+
+| Case | Payload SHA-256 前缀 | L3：CU-CP `Rx PDU` | L4：响应 |
 |---|---|---|---|
-| F1AP UEContextSetupRequest | DU | PASS | UEContextSetupResponse 被 CU-CP 接收 |
-| F1AP UEContextModificationRequest | DU | PASS | UEContextModificationResponse 被 CU-CP 接收 |
-| F1AP UEContextReleaseCommand | DU | PASS | UEContextReleaseComplete 被 CU-CP 接收 |
-| E1AP BearerContextSetupRequest | CU-UP | PASS | BearerContextSetupResponse 被 CU-CP 接收 |
-| E1AP BearerContextModificationRequest | CU-UP | PASS | BearerContextModificationResponse 被 CU-CP 接收 |
-| E1AP BearerContextReleaseCommand | CU-UP | PASS | BearerContextReleaseComplete 被 CU-CP 接收 |
-| GTP-U downlink T-PDU | CU-UP | PASS | CU-UP `RX SDU` 后推进 PDCP/F1-U，UE 收到 PDU |
-| NGAP InitialUEMessage / NG Setup | Open5GS AMF / UERANSIM gNB | PASS | NG Setup 响应、UE 注册和 PDU Session 均成功 |
+| F1SetupRequest | `3d85d75ded3e` | 未计入：当前结果缺匹配接收日志 | 未计入；虽收到 procedure 1 unsuccessful outcome，但不绕过 L3 |
+| GNBDUConfigurationUpdate | `d05ca7dc13d3` | PASS，`tid=42` | PASS，`GNBDUConfigurationUpdateAcknowledge`，response hash `0ae04cd683d4` |
+| F1 Reset | `47925651ae82` | PASS，`tid=43` | 未收到响应 |
+| GNB-CU-UP-E1SetupRequest | `90027e969377` | PASS，`tid=51` | PASS，`GNB-CU-UP-E1SetupResponse`，response hash `41f18d00c88f` |
+| GNB-CU-UP-ConfigurationUpdate | `6bd2fff54a04` | PASS，`tid=52` | 未收到响应 |
+| E1 Reset | `1a947fe50dca` | PASS，`tid=53` | 未收到响应 |
 
-F1AP/E1AP 共 6 类目标消息达到 L3/L4，超过课程要求的至少 5 类；不是用发送
-动作或生成 pcap 代替对端识别。
+每个通过 L3 的 case 均由唯一 transaction ID、同一隔离 association 和带时间戳
+的 CU-CP `Rx PDU` 行关联到本次生成 payload。结构化运行结果位于可再生成的
+`json/replay_results/stage5c4/control_peer_validation.json`，未作为静态证据提交。
 
-## 可追溯运行
+## GTP-U Live Replay
 
-统一 live 验收使用：
+验收 run `registration_pdu_session_20260604_205956` 动态提取并使用：
 
-- PDU flow：`registration_pdu_session_20260604_162322`
-  - 38 条控制消息、7 条 GTP-U、45 个 timeline event，PASS
-- Release flow：`registration_release_20260604_162553`
-  - 46 条控制消息、3 条 GTP-U、49 个 timeline event，PASS
-- structured peer result：`json/replay_results/stage5c4/peer_validation.json`
-- structured NGAP result：`json/replay_results/stage5c4/ngap_open5gs.json`
-
-这些运行产物和原始日志/pcap 可再生成且按规则不提交；本报告提交验收结论。
-
-## GTP-U 动态 replay
-
-最终 run 从当前 session 自动提取并使用：
-
-- UPF endpoint：`10.53.1.3`
+- UPF endpoint：`10.53.1.3:2152`
 - CU-UP endpoint：`10.53.1.5`
 - 当前下行 TEID：`0x000001`
-- 当前上行 TEID：`0x003fcf`
-- 当前 UE 地址：`10.45.0.16`
+- 当前上行 TEID：`0x00e276`
+- 当前 UE 地址：`10.45.0.27`
 - QFI：`1`
+- Case ID：`gtpu_generated_current_session_downlink`
+- 生成 payload SHA-256：`5a83c5203d75ab18784ee4672adc5f8ef1901a44a140b0802392c0b0e6f834a3`
 
-live packet 只从本地 UPF network namespace 发往当前 CU-UP endpoint/TEID。
-L3 要求 CU-UP 日志出现目标 TEID 的 `RX SDU`；L4 还要求 CU-UP 推进
-PDCP/F1-U 并且 UE 日志出现 `RX PDU`。
+生成 testcase 从本地 UPF namespace 发往当前 CU-UP endpoint/TEID。CU-UP
+在发送前，同一 payload 的临时 pcap 已由 tshark 正确识别目标 TEID 且非
+malformed；发送时间之后 CU-UP 记录目标 TEID 的 `RX SDU`，随后推进
+PDCP/F1-U，UE 收到 PDU，因此 GTP-U 达到 L1-L4。
 
-## 安全与边界
+## NGAP/Open5GS Testcase 入口
 
-- 默认模式是 dry-run；只有显式 `--live` 才运行受控场景或发送 GTP-U。
-- live GTP-U 只允许当前本地容器的私有地址，并拒绝已移除的 tunnel。
-- 每个 live 入口前后执行 baseline 健康检查；flow 异常时恢复默认 baseline。
-- 控制面使用真实协议栈和已有 SCTP association 的受控 flow，不做原始 SCTP
-  pcap 注入。
-- XnAP 按既定范围唯一豁免 live replay，5C.3 已完成离线构造和 L2。
-- raw pcap、raw tshark JSON 和日志未提交。
+入口现在接受显式 `--case`。验收使用：
+
+```bash
+python3 scripts/replay/run_ngap_open5gs_test.py --live \
+  --case tests/replay/ngap_cases/tac_mismatch.json
+```
+
+UERANSIM gNB-only 测试端实际应用 `tracking_area_code: 999`，Open5GS 场景按预期
+未完成 NG Setup，baseline 随后健康。该能力分类为协议感知配置 mutation，
+不是 payload replay，因此报告中的 NGAP replay L1-L4 保持未声明。普通
+UERANSIM registration/PDU Session smoke 继续单独保留。
+
+## 恢复与安全验收
+
+- 默认 `--dry-run` 不创建新 SCTP association、不发送 live packet。
+- live 场景只作用于本地私有 Docker 网络，并使用 opt-in overlay。
+- flow 中途强制失败时保留原始退出码 `96`，随后 baseline 恢复并通过健康检查。
+- 模拟恢复函数失败时 live runner 返回非零 `97` 并明确报告恢复失败。
+- 所有真实验收结束后 `scripts/env/check_core_ready.sh` 通过。
+- XnAP 是唯一豁免 live replay 的协议。
+
+## 边界
+
+- F1 Setup 缺少可关联的 CU-CP 接收日志，因此不计 L3/L4，尽管收到了失败响应。
+- F1 Reset、E1 Configuration Update、E1 Reset 达到 L3，但未收到预期响应，
+  因此不计 L4。
+- raw pcap、raw tshark JSON 和原始日志未提交。

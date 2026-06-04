@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "id": "ngap_ueransim_smoke",
+  "description": "Ordinary UERANSIM registration and PDU-session smoke test",
+  "protocol": "NGAP",
+  "kind": "smoke"
+}

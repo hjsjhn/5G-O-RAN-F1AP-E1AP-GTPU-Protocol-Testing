@@ -1,25 +1,41 @@
 #!/usr/bin/env bash
-# Run Stage 5C.4 peer validation. Defaults to a non-sending dry run.
+# Run available Stage 5C.4 live tests. Defaults to a non-sending dry run.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MODE="${1:-}"
 OUTPUT_DIR="$PROJECT_ROOT/json/replay_results/stage5c4"
+RESTORE_ON_EXIT=0
+
+on_exit() {
+  local test_status="$1"
+  local restore_status=0
+  trap - EXIT
+  set +e
+  if (( RESTORE_ON_EXIT == 1 )); then
+    "$PROJECT_ROOT/scripts/env/restore_baseline.sh"
+    restore_status=$?
+  fi
+  if (( test_status != 0 )); then
+    echo "Live runner failed with status ${test_status}; baseline restore status=${restore_status}." >&2
+    exit "$test_status"
+  fi
+  if (( restore_status != 0 )); then
+    echo "ERROR: live runner completed but baseline restoration failed." >&2
+    exit "$restore_status"
+  fi
+  exit 0
+}
+trap 'on_exit $?' EXIT
 
 usage() {
   cat <<EOF
 Usage: $0 [--dry-run|--live]
 
 --dry-run  Check the baseline and print the isolated live scenario without sending.
---live     Run controlled F1AP/E1AP flows, dynamic GTP-U replay, and NGAP/Open5GS test.
+--live     Run generated F1AP/E1AP peer tests, GTP-U replay, and NGAP mutation entry.
 EOF
-}
-
-latest_flow_dir() {
-  local prefix="$1"
-  find "$PROJECT_ROOT/json/flow_results" -maxdepth 1 -type d -name "${prefix}_*" -print \
-    | sort | tail -1
 }
 
 cd "$PROJECT_ROOT"
@@ -28,31 +44,33 @@ mkdir -p "$OUTPUT_DIR"
 case "$MODE" in
   ""|--dry-run)
     ./scripts/env/check_core_ready.sh
+    python3 scripts/replay/run_control_peer_validation.py \
+      --output "$OUTPUT_DIR/control_peer_dry_run.json"
     python3 scripts/replay/run_ngap_open5gs_test.py --output "$OUTPUT_DIR/ngap_dry_run.json"
     cat <<EOF
 DRY-RUN: no live packets or new SCTP associations were created.
-Live mode runs the two controlled UE flows, injects GTP-U only from the local
-UPF namespace to the current CU-UP endpoint/TEID, and uses UERANSIM as the
-protocol-aware NGAP/Open5GS test endpoint.
+Live mode uses an isolated protocol-aware SCTP endpoint for generated F1AP/E1AP
+testcases, creates a normal UE session only as GTP-U precondition, injects the
+generated GTP-U testcase, and runs a separately labelled NGAP config mutation.
 EOF
     ;;
   --live)
+    RESTORE_ON_EXIT=1
     ./scripts/env/check_core_ready.sh
+    if [[ "${LIVE_RUNNER_TEST_EXIT_AFTER_PREP:-0}" == "1" ]]; then
+      echo "TEST-ONLY: exiting successfully before live tests to exercise restoration." >&2
+      exit 0
+    fi
+    python3 scripts/replay/run_control_peer_validation.py \
+      --live \
+      --output "$OUTPUT_DIR/control_peer_validation.json"
     FLOW_LIVE_GTPU_REPLAY=1 ./scripts/flows/run_ue_flow.sh registration_pdu_session
-    PDU_RESULT_DIR="$(latest_flow_dir registration_pdu_session)"
-    ./scripts/env/check_core_ready.sh
-    ./scripts/flows/run_ue_flow.sh registration_release
-    RELEASE_RESULT_DIR="$(latest_flow_dir registration_release)"
-    ./scripts/env/check_core_ready.sh
-    python3 scripts/replay/validate_peer_scenario.py \
-      --pdu-result-dir "$PDU_RESULT_DIR" \
-      --release-result-dir "$RELEASE_RESULT_DIR" \
-      --output "$OUTPUT_DIR/peer_validation.json"
     python3 scripts/replay/run_ngap_open5gs_test.py \
       --live \
+      --case tests/replay/ngap_cases/tac_mismatch.json \
       --output "$OUTPUT_DIR/ngap_open5gs.json"
     ./scripts/env/check_core_ready.sh
-    echo "PASS: Stage 5C.4 live peer validation"
+    echo "PASS: generated F1AP/E1AP peer tests, GTP-U live replay, and NGAP mutation entry"
     ;;
   -h|--help|help)
     usage
