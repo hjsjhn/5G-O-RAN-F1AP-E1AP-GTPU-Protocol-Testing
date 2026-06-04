@@ -15,6 +15,7 @@ claude-*.md
 json/tshark_raw/*.json
 json/replay_results/*.json
 json/replay_results/**/*.json
+json/replay_results/**/*.md
 json/flow_results/
 
 # Logs

@@ -172,6 +172,12 @@ docker exec srsue_5g_zmq sh -lc '
   ping -I tun_srsue -c 1 -W 1 8.8.8.8 >/tmp/ue_flow_ping.log 2>&1 || true
 ' || true
 
+if [[ "${FLOW_LIVE_GTPU_REPLAY:-0}" == "1" ]]; then
+  python3 scripts/replay/live_gtpu_replay.py \
+    --live \
+    --output "$RESULT_DIR/live_gtpu_result.json"
+fi
+
 if [[ "$FLOW" == "registration_release" ]]; then
   echo "Waiting for legitimate inactivity-triggered release while srsUE remains running..."
   wait_for_release

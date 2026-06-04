@@ -224,22 +224,23 @@ Dashboard 使用前面产生的真实结果：
 - [x] F1AP/E1AP/NGAP 合法模板与当前 GTP-U endpoint/TEID 提取。
 - [x] 至少 5 类控制消息可逆编码和 Wireshark 验证。
 - [x] XnAP 离线解析/构造样例。
-- [ ] F1AP/E1AP/GTP-U/NGAP 对端组件验证。
+- [x] F1AP/E1AP/GTP-U/NGAP 对端组件验证。
 - [ ] Open5GS issue-driven 测试。
 - [ ] Dashboard。
 
 ## 立即执行项
 
-下一项是 **5C.4：多协议对端组件验证与回放**。
+下一项是 **5C.5：两条完整 UE Flow 最终独立验收**。
 
 其直接交付物是：
 
-1. 至少 5 类 F1AP/E1AP 控制消息的真实对端 L3 证据。
-2. F1AP、E1AP 各至少一个预期响应/状态推进证据。
-3. 动态 TEID/endpoint 的 GTP-U live replay 与接收证据。
-4. 默认 dry-run 的 NGAP/Open5GS 协议测试入口。
+1. 注册 + PDU Session flow 的独立一条命令最终 PASS。
+2. 注册 + inactivity-triggered Release flow 的独立一条命令最终 PASS。
+3. UE、CU-CP、CU-UP、DU、Open5GS 日志和跨协议 timeline 均证明状态机推进。
+4. 两次 flow 后 baseline 均恢复健康。
 
-5C.2 和 5C.3 已通过，报告分别见
+5C.2、5C.3 和 5C.4 已通过，报告分别见
 `reports/testcase_reports/stage5c2-flow-template-report.md` 和
-`reports/testcase_reports/stage5c3-offline-encoding-report.md`。下一步进入
-F1AP/E1AP/GTP-U 多协议对端验证，并建立 NGAP/Open5GS 测试入口。
+`reports/testcase_reports/stage5c3-offline-encoding-report.md`、
+`reports/testcase_reports/stage5c4-peer-validation-report.md`。下一步对两条
+完整 UE flow 做最终独立验收和报告收口。

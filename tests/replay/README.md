@@ -73,3 +73,21 @@ The runner writes one packet per testcase and checks:
 
 This runner proves L1/L2 offline encoding only. It does not claim L3 peer
 recognition or L4 state-machine advancement.
+
+## Live Peer Validation
+
+Stage 5C.4 live validation is a separate, default-dry-run entry:
+
+```bash
+./scripts/replay/run_live_peer_validation.sh --dry-run
+./scripts/replay/run_live_peer_validation.sh --live
+```
+
+`--live` is restricted to the local isolated Docker environment. It uses real
+controlled UE flows for F1AP/E1AP peer recognition, the current active
+endpoint/TEID for GTP-U, and UERANSIM as a protocol-aware NGAP/Open5GS test
+endpoint. It records L3 only from receiver-side component logs and L4 only when
+the expected response or state-machine advance is also observed.
+
+The two UE flow commands retain their existing default behavior. GTP-U live
+injection is opt-in through the Stage 5C.4 runner.
