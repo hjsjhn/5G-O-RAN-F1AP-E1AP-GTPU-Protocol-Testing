@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "stage": "5C.2",
+  "source_runs": {
+    "control": "registration_release_20260604_151613",
+    "gtpu": "registration_pdu_session_20260604_151300"
+  },
+  "control_templates": [
+    "ngap_initialuemessage",
+    "f1ap_uecontextsetuprequest",
+    "ngap_pdusessionresourcesetuprequest",
+    "e1ap_bearercontextsetuprequest",
+    "f1ap_uecontextmodificationrequest",
+    "e1ap_bearercontextmodificationrequest",
+    "ngap_uecontextreleaserequest",
+    "ngap_uecontextreleasecommand",
+    "e1ap_bearercontextreleasecommand",
+    "f1ap_uecontextreleasecommand"
+  ],
+  "gtpu_current_tunnels": [
+    {
+      "interface": "F1-U",
+      "src_ip": "172.18.10.3",
+      "dst_ip": "172.18.10.2",
+      "teid": "0x00000001"
+    },
+    {
+      "interface": "N3",
+      "src_ip": "10.53.1.5",
+      "dst_ip": "10.53.1.3",
+      "teid": "0x00006f52",
+      "qfi": 1
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.6",
+    "src_ip": "10.53.1.4"
+  },
+  "id": "f1ap_uecontextsetuprequest",
+  "key_ies": {
+    "procedureCode": "5"
+  },
+  "message": "UEContextSetupRequest",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "00050034000006002800020000002940020000003f00090000f11000066c0000006b00010000090001000032400a09000222081088e234af",
+    "length": 56
+  },
+  "procedure_code": 5,
+  "protocol": "F1AP",
+  "schema_version": 1,
+  "source": {
+    "capture_run": "registration_release_20260604_151613",
+    "frame": 171,
+    "pcap": "captures/raw/registration_release_20260604_151613/ran_sctp_full.pcap",
+    "time_epoch": "1780557538.586491000"
+  },
+  "transport": {
+    "dst_port": 42648,
+    "ppid": 62,
+    "src_port": 38472,
+    "stream_id": "0x0000",
+    "stream_sequence": "4",
+    "tsn": "4",
+    "type": "SCTP"
+  }
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "gtp": {
+      "extension_length": 2,
+      "extension_next": "0x84,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": null,
+      "qfi": null,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00000001"
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": null,
+      "src": null
+    },
+    "outer_ip": {
+      "dst": "172.18.10.2",
+      "src": "172.18.10.3"
+    },
+    "payload": {
+      "encoding": "GTP-U",
+      "hex": "34ff000c0000000100000084021000005e300000",
+      "length": 20
+    },
+    "source": {
+      "capture_run": "registration_pdu_session_20260604_151300",
+      "frame": 1,
+      "pcap": "captures/raw/registration_pdu_session_20260604_151300/gtpu_full.pcap",
+      "time_epoch": 1780557297.785578
+    },
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  },
+  {
+    "gtp": {
+      "extension_length": 1,
+      "extension_next": "0x85,0x00",
+      "message_type": "0xff",
+      "pdu_session_container_type": 1,
+      "qfi": 1,
+      "ran_container": null,
+      "sequence_number": null,
+      "teid": "0x00006f52"
+    },
+    "inner_ip": {
+      "dst": null,
+      "src": null
+    },
+    "inner_ipv6": {
+      "dst": "ff02::2",
+      "src": "fe80::bd5c:75f:ec8d:8165"
+    },
+    "outer_ip": {
+      "dst": "10.53.1.3",
+      "src": "10.53.1.5"
+    },
+    "payload": {
+      "encoding": "GTP-U",
+      "hex": "34ff003800006f5200000085011001006000000000083afffe80000000000000bd5c075fec8d8165ff02000000000000000000000000000285004a8800000000",
+      "length": 64
+    },
+    "source": {
+      "capture_run": "registration_pdu_session_20260604_151300",
+      "frame": 3,
+      "pcap": "captures/raw/registration_pdu_session_20260604_151300/gtpu_full.pcap",
+      "time_epoch": 1780557298.011915
+    },
+    "udp": {
+      "dstport": 2152,
+      "srcport": 2152
+    }
+  }
+]

@@ -19,7 +19,7 @@
 |---|---|---|---|
 | 结构化 JSON 解析 | E1AP、F1AP、XnAP、GTP-U 常用 IE | F1AP/E1AP/GTP-U 已完成；XnAP 待完成 | 补 XnAP 离线解析/构造样例 |
 | 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | GTP-U 离线编码 MVP 完成；控制面和对端验证待完成 | 完成 F1AP/E1AP 控制消息编码、各协议验证与回放 |
-| 两个完整 UE 流程 | 例如注册 + PDU Session、注册 + 注销；推进状态机并输出日志 | 注册 + PDU Session 已能跑；尚未形成完整结构化 testcase；注册 + 注销待完成 | 自动化两条 flow 并验证状态机 |
+| 两个完整 UE 流程 | 例如注册 + PDU Session、注册 + 注销；推进状态机并输出日志 | 5C.2 已完成注册 + PDU Session、注册 + Release 的结构化自动测试 | 自动化两条 flow 并验证状态机 |
 | 跨协议层分析 | 分析与 NG 接口关联的交互 | NGAP 已抓包/解析 | 将 NGAP 纳入 flow timeline、Open5GS issue 测试和回放验证 |
 | 加分项 2 | 自动生成网络组件可正确接收的测试例 | 部分完成 | 完成生成、回放、日志/响应检查和报告闭环 |
 
@@ -220,8 +220,8 @@ Dashboard 使用前面产生的真实结果：
 - [x] GTP-U testcase schema MVP。
 - [x] GTP-U JSON → pcap 离线编码。
 - [x] GTP-U tshark 和 Stage 4 round-trip 基础验证。
-- [ ] 两条完整 UE flow 的结构化自动测试。
-- [ ] F1AP/E1AP 合法模板提取。
+- [x] 两条完整 UE flow 的结构化自动测试。
+- [x] F1AP/E1AP/NGAP 合法模板与当前 GTP-U endpoint/TEID 提取。
 - [ ] 至少 5 类控制消息可逆编码和 Wireshark 验证。
 - [ ] XnAP 离线解析/构造样例。
 - [ ] F1AP/E1AP/GTP-U/NGAP 对端组件验证。
@@ -230,7 +230,7 @@ Dashboard 使用前面产生的真实结果：
 
 ## 立即执行项
 
-下一项是 **5C.2：新鲜 Flow 抓包与模板提取**，不是单独做 GTP-U live replay。
+下一项是 **5C.3：多协议离线可逆编码与 Wireshark 验证**。
 
 其直接交付物是：
 
@@ -239,4 +239,4 @@ Dashboard 使用前面产生的真实结果：
 3. 当前 GTP-U endpoint/TEID 模板。
 4. 控制消息覆盖缺口报告。
 
-完成 5C.2 后，按 5C.3 同时推进 F1AP/E1AP/XnAP/GTP-U 的离线编码和验证，再进入多协议对端回放。
+5C.2 已通过，报告见 `reports/testcase_reports/stage5c2-flow-template-report.md`。按 5C.3 同时推进 F1AP/E1AP/XnAP/GTP-U 的离线编码和验证，再进入多协议对端回放。

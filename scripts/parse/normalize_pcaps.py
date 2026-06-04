@@ -193,7 +193,9 @@ def clean_info_message(info: str) -> str | None:
     cleaned = re.sub(r"^(SACK|HEARTBEAT|INIT|DATA)\s*\([^)]*\)\s*,\s*", "", info)
     parts = [part.strip() for part in cleaned.split(",")]
     for part in parts:
-        if not part or part.startswith(("SACK", "HEARTBEAT", "INIT", "DATA ")):
+        if not part or part.startswith(
+            ("SACK", "HEARTBEAT", "INIT", "DATA ", "Ack=", "Arwnd=", "TSN=", "retransmission")
+        ):
             continue
         part = re.sub(r"\s+\(.*\)$", "", part)
         return part

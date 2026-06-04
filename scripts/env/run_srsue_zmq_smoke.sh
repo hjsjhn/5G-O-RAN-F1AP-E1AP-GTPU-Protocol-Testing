@@ -34,6 +34,7 @@ load_env() {
     exit 1
   fi
 
+  local recreate_du_override="${SRSUE_RECREATE_DU:-}"
   set -a
   # shellcheck disable=SC1090
   source "$ENV_FILE"
@@ -46,7 +47,7 @@ load_env() {
   SRS_ZMQ_PRB="${SRS_ZMQ_PRB:-52}"
   SRS_ZMQ_SRATE_HZ="${SRS_ZMQ_SRATE_HZ:-11.52e6}"
   SRS_ZMQ_SSB_ARFCN="${SRS_ZMQ_SSB_ARFCN:-367930}"
-  SRSUE_RECREATE_DU="${SRSUE_RECREATE_DU:-1}"
+  SRSUE_RECREATE_DU="${recreate_du_override:-${SRSUE_RECREATE_DU:-1}}"
 
   : "${MCC:?missing MCC}"
   : "${MNC:?missing MNC}"
