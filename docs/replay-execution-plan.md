@@ -18,7 +18,7 @@
 | 课程基本功能 | 必须覆盖 | 当前状态 | Stage 5C 责任 |
 |---|---|---|---|
 | 结构化 JSON 解析 | E1AP、F1AP、XnAP、GTP-U 常用 IE | F1AP/E1AP/GTP-U 已完成；XnAP 离线样例已完成 | 继续扩展对端验证结果 |
-| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | 6 类 F1AP/E1AP 已完成结构化关键 IE mutation、强类型 APER 重新编码和 L1/L2；5 类生成控制 testcase 达到真实对端 L3 | 继续扩展更多 IE/issue testcase |
+| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | 6 类 UE/Bearer Context 消息完成离线强类型 mutation L1/L2；另有 6 类 JSON 驱动管理消息使用同一 APER payload 完成 pcap/L2/live，其中 5 类达到真实对端 L3 | 继续扩展更多 IE/issue testcase |
 | 两个完整 UE 流程 | 例如注册 + PDU Session、注册 + 注销；推进状态机并输出日志 | 5C.2 已完成注册 + PDU Session、注册 + Release 的结构化自动测试 | 自动化两条 flow 并验证状态机 |
 | 跨协议层分析 | 分析与 NG 接口关联的交互 | NGAP 已抓包/解析 | 将 NGAP 纳入 flow timeline、Open5GS issue 测试和回放验证 |
 | 加分项 2 | 自动生成网络组件可正确接收的测试例 | 部分完成 | 完成生成、回放、日志/响应检查和报告闭环 |
@@ -29,8 +29,8 @@
 
 | 协议 | JSON 解析 | JSON/template → pcap | Wireshark 验证 | 对端组件验证/回放 |
 |---|---|---|---|---|
-| F1AP | 已完成 | 3 类关键 IE mutation + 强类型 ASN.1 APER 重新编码 | 3 类目标消息完成 L2 | 生成 GNBDUConfigurationUpdate/Reset 达到 L3，Configuration Update 达到 L4 |
-| E1AP | 已完成 | 3 类关键 IE mutation + 强类型 ASN.1 APER 重新编码 | 3 类目标消息完成 L2 | 生成 Setup/ConfigurationUpdate/Reset 达到 L3，Setup 达到 L4 |
+| F1AP | 已完成 | 3 类 UE Context mutation；3 类管理消息由结构化 JSON 驱动 ASN.1 构造 | 所有目标消息完成 L2 | JSON-generated payload 原样发送；GNBDUConfigurationUpdate/Reset 达到 L3，Configuration Update 达到严格 L4 |
+| E1AP | 已完成 | 3 类 Bearer Context mutation；3 类管理消息由结构化 JSON 驱动 ASN.1 构造 | 所有目标消息完成 L2 | JSON-generated payload 原样发送；Setup/ConfigurationUpdate/Reset 达到 L3，Setup 达到严格 L4 |
 | GTP-U | 已完成 | MVP 已完成，继续补扩展头、mutation | 已完成基础验证 | 必须完成 UDP/2152 live replay 和接收证据 |
 | XnAP | Handover Request/Acknowledge 离线样例已完成 | srsRAN ASN.1 构造器已完成 | 两类消息已完成 L2 | 根据 Stage 4.5 约定，不要求当前环境 live replay |
 | NGAP | 已完成 | 普通 smoke 与显式 testcase/mutation 入口已分离 | mutation 场景由协议感知 UERANSIM 生成 | Open5GS TAC mismatch testcase 已运行；payload replay/issue reproduction 后续扩展 |
@@ -52,6 +52,18 @@
 - NGAP InitialUEMessage、InitialContextSetup、PDUSessionResourceSetup 或 issue 相关消息：跨层分析和 Open5GS 测试。
 
 如果当前 srsRAN 版本无法产生某类 Release 消息，必须记录证据并使用同协议的可验证替代消息，不能直接减少控制消息总数。
+
+真实对端闭环使用更容易安全建立前置状态的 6 类管理消息：
+
+1. F1AP F1SetupRequest
+2. F1AP GNBDUConfigurationUpdate
+3. F1AP Reset
+4. E1AP GNB-CU-UP-E1SetupRequest
+5. E1AP GNB-CU-UP-ConfigurationUpdate
+6. E1AP Reset
+
+每个管理消息由独立结构化 JSON 输入驱动 ASN.1 generator。生成的唯一 APER
+payload 必须同时用于 pcap/tshark 和 SCTP endpoint；endpoint 不允许重新构造消息。
 
 ## 验证层次
 
@@ -224,7 +236,7 @@ Dashboard 使用前面产生的真实结果：
 - [x] F1AP/E1AP/NGAP 合法模板与当前 GTP-U endpoint/TEID 提取。
 - [x] 6 类 F1AP/E1AP 控制消息完成结构化关键 IE mutation、强类型 APER 重新编码和 L1/L2。
 - [x] XnAP 离线解析/构造样例。
-- [x] F1AP/E1AP 生成 testcase 使用隔离协议感知 SCTP 测试端验证；5 类达到 L3，F1AP/E1AP 各一类达到 L4。
+- [x] 6 类 F1AP/E1AP 管理消息由独立 JSON 驱动生成；JSON-generated、pcap-extracted、实际发送 payload hash 全部一致；5 类达到 L3，F1AP/E1AP 各一类达到严格 response transaction ID 关联的 L4。
 - [x] GTP-U 生成 testcase live replay。
 - [x] NGAP/Open5GS testcase/mutation 入口；普通 UERANSIM smoke 已单独保留。
 - [ ] Open5GS issue-driven 测试。
@@ -233,9 +245,10 @@ Dashboard 使用前面产生的真实结果：
 ## 当前阶段结论
 
 5C.2、5C.3、5C.4、5C.5 已按本计划实际运行并通过各自验收。自然 UE flow
-证据仍只计入 5C.5；5C.4 控制面等级只来自本次生成 testcase、独立 association、
-CU-CP 接收日志和响应。后续工作是 5C.6 Open5GS issue-driven 测试与 5C.7
-dashboard，不反向扩大已声明的 L1-L4。
+证据仍只计入 5C.5；5C.4 控制面等级只来自独立 JSON 驱动生成的唯一 payload、
+同一 payload 的 pcap/L2、实际发送 hash、独立 association、CU-CP 接收日志和
+严格 transaction ID 响应关联。后续工作是 5C.6 Open5GS issue-driven 测试与
+5C.7 dashboard，不反向扩大已声明的 L1-L4。
 
 报告见
 `reports/testcase_reports/stage5c2-flow-template-report.md` 和

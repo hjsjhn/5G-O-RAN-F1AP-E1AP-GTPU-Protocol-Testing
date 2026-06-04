@@ -34,7 +34,7 @@ usage() {
 Usage: $0 [--dry-run|--live]
 
 --dry-run  Check the baseline and print the isolated live scenario without sending.
---live     Run generated F1AP/E1AP peer tests, GTP-U replay, and NGAP mutation entry.
+--live     Run JSON-generated same-payload F1AP/E1AP peer tests, GTP-U replay, and NGAP mutation entry.
 EOF
 }
 
@@ -49,9 +49,10 @@ case "$MODE" in
     python3 scripts/replay/run_ngap_open5gs_test.py --output "$OUTPUT_DIR/ngap_dry_run.json"
     cat <<EOF
 DRY-RUN: no live packets or new SCTP associations were created.
-Live mode uses an isolated protocol-aware SCTP endpoint for generated F1AP/E1AP
-testcases, creates a normal UE session only as GTP-U precondition, injects the
-generated GTP-U testcase, and runs a separately labelled NGAP config mutation.
+Live mode generates F1AP/E1AP payloads from JSON, validates them with tshark,
+passes the same bytes to an isolated protocol-aware SCTP endpoint, creates a
+normal UE session only as GTP-U precondition, injects the generated GTP-U
+testcase, and runs a separately labelled NGAP config mutation.
 EOF
     ;;
   --live)
@@ -70,7 +71,7 @@ EOF
       --case tests/replay/ngap_cases/tac_mismatch.json \
       --output "$OUTPUT_DIR/ngap_open5gs.json"
     ./scripts/env/check_core_ready.sh
-    echo "PASS: generated F1AP/E1AP peer tests, GTP-U live replay, and NGAP mutation entry"
+    echo "PASS: JSON-generated same-payload F1AP/E1AP peer tests, GTP-U live replay, and NGAP mutation entry"
     ;;
   -h|--help|help)
     usage

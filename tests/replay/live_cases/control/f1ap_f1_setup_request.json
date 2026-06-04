@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "f1ap_generated_f1_setup_request",
+  "description": "JSON-driven F1SetupRequest sent by the isolated DU endpoint",
+  "protocol": "F1AP",
+  "message": "F1SetupRequest",
+  "procedure_code": 1,
+  "transaction_id": 41,
+  "mutable_ies": ["transaction_id", "gnb_du_id", "gnb_du_name", "nr_cell_id", "tac"],
+  "structured_ies": {
+    "transaction_id": 41,
+    "gnb_du_id": 23553,
+    "gnb_du_name": "stage5c-peer-du",
+    "rrc_version": 1,
+    "plmn_id": "00f110",
+    "nr_cell_id": 107741185,
+    "nr_pci": 2,
+    "tac": 7,
+    "nr_arfcn": 626748,
+    "freq_band": 78,
+    "nr_scs": "scs30",
+    "nr_nrb": "nrb51",
+    "meas_timing_cfg": "30",
+    "mib_hex": "01c586",
+    "sib1_hex": "92002808241099000001000000000a4213407800008c98d6d8d7f616e0804000020107e28180008000088a0dc7008000088a0007141a2281c874cc00020000232d5c6b6c65462001ec4cc5fc9c0493946a98d4d1e99355c00a1aba010580ec024646f62180"
+  },
+  "expected_response": {
+    "outcomes": {
+      "successfulOutcome": "F1SetupResponse",
+      "unsuccessfulOutcome": "F1SetupFailure"
+    }
+  },
+  "expect": {
+    "display_filter": "f1ap && f1ap.F1SetupRequest_element",
+    "fields": {
+      "f1ap.procedureCode": "1",
+      "f1ap.TransactionID": "41",
+      "f1ap.GNB_DU_ID": "23553"
+    }
+  }
+}

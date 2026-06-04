@@ -10,8 +10,12 @@ EXPECTED_SRSRAN_COMMIT="4bf1543936d062686d64c10724d2f27a9854f065"
 BUILDER_IMAGE="${PROTOCOL_PEER_BUILDER_IMAGE:-pavonis/srs-gnb-dev@sha256:820ba5ed9056ba8f913ef6b749bf24cd72127ceadf040d60fbc56193368bb344}"
 BUILDER_PLATFORM="${PROTOCOL_PEER_BUILDER_PLATFORM:-linux/amd64}"
 
-if [[ "$#" -ne 1 || ( "$1" != "f1ap" && "$1" != "e1ap" && "$1" != "--build-only" ) ]]; then
-  echo "Usage: $0 f1ap|e1ap|--build-only" >&2
+if [[ "$#" -lt 1 || ( "$1" != "f1ap" && "$1" != "e1ap" && "$1" != "--build-only" ) ]]; then
+  echo "Usage: $0 --build-only | f1ap|e1ap CASE_ID PAYLOAD_HEX [CASE_ID PAYLOAD_HEX ...]" >&2
+  exit 2
+fi
+if [[ "$1" != "--build-only" && ( "$#" -lt 3 || $(( ($# - 1) % 2 )) -ne 0 ) ]]; then
+  echo "Each external testcase requires CASE_ID and PAYLOAD_HEX." >&2
   exit 2
 fi
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
@@ -46,4 +50,4 @@ fi
 
 docker run --rm --platform "$BUILDER_PLATFORM" --network compose_ran \
   -v "$BUILD_DIR:/build:ro" \
-  --entrypoint /build/protocol_peer_endpoint "$BUILDER_IMAGE" "$1"
+  --entrypoint /build/protocol_peer_endpoint "$BUILDER_IMAGE" "$@"

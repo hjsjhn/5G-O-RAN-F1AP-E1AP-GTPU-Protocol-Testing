@@ -38,6 +38,7 @@ builder digest, then compare the generated APER payloads with the committed
 templates:
 
 ```bash
+./scripts/replay/prepare_replay_dependencies.sh --check
 ./scripts/replay/check_xnap_template_generation.sh
 ```
 
@@ -86,17 +87,23 @@ The Stage 5C.4 live entry is default-dry-run:
 ./scripts/replay/run_live_peer_validation.sh --live
 ```
 
-`--live` is restricted to the local isolated Docker environment. It runs
-generated F1AP/E1AP testcases through a protocol-aware SCTP endpoint, dynamic
-GTP-U replay, and an explicitly selected NGAP/Open5GS mutation case. Results
-associate control cases with payload hash, per-payload tshark L2 evidence, send
-time, CU-CP receive log, and response. The dynamic GTP-U payload receives the
-same L2 check before transmission. Normal UE flows and a plain UERANSIM smoke
-test are not counted as generated-testcase replay L3/L4.
+`--live` is restricted to the local isolated Docker environment. Each selected
+F1AP/E1AP management testcase is a standalone structured JSON input. The pinned
+srsRAN ASN.1 generator creates one APER payload from that JSON; the runner uses
+the exact bytes for pcap/tshark L2 and passes the same bytes to the SCTP
+endpoint. The endpoint does not construct test messages. Results record and
+compare JSON-generated, pcap-extracted, and actually sent payload hashes, then
+associate the send with CU-CP receive logs and a strictly decoded response
+procedure/outcome/message/transaction ID.
 
-The selected generated control cases and their expected procedures/responses
-are declared in `tests/replay/live_cases/control_peer_cases.json`. NGAP smoke
-and mutation inputs are declared separately under `tests/replay/ngap_cases/`.
+The live entry also runs dynamic GTP-U replay and an explicitly selected
+NGAP/Open5GS mutation case. Normal UE flows and a plain UERANSIM smoke test are
+not counted as generated-testcase replay L3/L4.
+
+The selected control case index is `tests/replay/live_cases/control_peer_cases.json`;
+the JSON inputs it references are under `tests/replay/live_cases/control/`.
+NGAP smoke and mutation inputs are declared separately under
+`tests/replay/ngap_cases/`.
 
 The two UE flow commands retain their existing default behavior. GTP-U live
 injection is opt-in through the Stage 5C.4 runner.

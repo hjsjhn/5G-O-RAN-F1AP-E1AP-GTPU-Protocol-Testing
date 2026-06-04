@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "f1ap_generated_reset",
+  "description": "JSON-driven F1 Reset sent on the isolated F1 association",
+  "protocol": "F1AP",
+  "message": "Reset",
+  "procedure_code": 0,
+  "transaction_id": 43,
+  "mutable_ies": ["transaction_id"],
+  "structured_ies": {
+    "transaction_id": 43,
+    "cause": "misc_unspecified",
+    "reset_scope": "f1_interface"
+  },
+  "expected_response": {
+    "outcomes": {
+      "successfulOutcome": "ResetAcknowledge"
+    }
+  },
+  "expect": {
+    "display_filter": "f1ap && f1ap.Reset_element",
+    "fields": {
+      "f1ap.procedureCode": "0",
+      "f1ap.TransactionID": "43"
+    }
+  }
+}

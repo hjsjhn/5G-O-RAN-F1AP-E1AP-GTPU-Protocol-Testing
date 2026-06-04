@@ -1,6 +1,6 @@
 # 阶段 5C.5：两条完整 UE Flow 最终验收报告
 
-> 日期：2026-06-04
+> 日期：2026-06-05
 
 ## 结论
 
@@ -19,8 +19,8 @@ Stage 5C.5 最终独立验收通过。两条 flow 均使用公开默认命令独
 
 | Flow | Run ID | 控制消息 | GTP-U | Timeline | 结果 | 结束后 baseline |
 |---|---|---:|---:|---:|---|---|
-| Registration + PDU Session | `registration_pdu_session_20260604_205956` | 38 | 5 | 43 | PASS | HEALTHY |
-| Registration + Release | `registration_release_20260604_203214` | 46 | 3 | 49 | PASS | HEALTHY |
+| Registration + PDU Session | `registration_pdu_session_20260605_005309` | 38 | 1 | 39 | PASS | HEALTHY |
+| Registration + Release | `registration_release_20260605_005543` | 46 | 3 | 49 | PASS | HEALTHY |
 
 运行时结构化结果位于各自的
 `json/flow_results/<run-id>/result.json` 和 `result.md`；这些可再生成产物未提交。
@@ -57,5 +57,5 @@ Release flow 在 srsUE 继续运行时等待 CU-UP inactivity timer 触发合法
   Deregistration。
 - raw pcap、raw tshark JSON 和日志未提交；提交本报告和可复现命令。
 - 两条 flow 结束后均实际运行 `scripts/env/check_core_ready.sh` 并通过。
-- 额外强制失败验收确认：测试失败保留原始退出码并恢复 baseline；恢复失败会让
-  runner 返回非零，不会误报 PASS。
+- 额外强制失败验收确认：测试失败保留原始退出码 `96` 并恢复 baseline；模拟
+  恢复失败时 live runner 返回非零 `97`，不会误报 PASS。

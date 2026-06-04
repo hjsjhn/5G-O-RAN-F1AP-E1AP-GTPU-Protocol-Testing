@@ -1,69 +1,11 @@
 {
-  "schema_version": 1,
-  "cases": [
-    {
-      "id": "f1ap_generated_f1_setup_request",
-      "protocol": "F1AP",
-      "message": "F1SetupRequest",
-      "transaction_id": 41,
-      "procedure_code": 1,
-      "responses": {
-        "successfulOutcome": "F1SetupResponse",
-        "unsuccessfulOutcome": "F1SetupFailure"
-      }
-    },
-    {
-      "id": "f1ap_generated_gnb_du_configuration_update",
-      "protocol": "F1AP",
-      "message": "GNBDUConfigurationUpdate",
-      "transaction_id": 42,
-      "procedure_code": 3,
-      "responses": {
-        "successfulOutcome": "GNBDUConfigurationUpdateAcknowledge",
-        "unsuccessfulOutcome": "GNBDUConfigurationUpdateFailure"
-      }
-    },
-    {
-      "id": "f1ap_generated_reset",
-      "protocol": "F1AP",
-      "message": "Reset",
-      "transaction_id": 43,
-      "procedure_code": 0,
-      "responses": {
-        "successfulOutcome": "ResetAcknowledge"
-      }
-    },
-    {
-      "id": "e1ap_generated_gnb_cu_up_e1_setup_request",
-      "protocol": "E1AP",
-      "message": "GNB-CU-UP-E1SetupRequest",
-      "transaction_id": 51,
-      "procedure_code": 3,
-      "responses": {
-        "successfulOutcome": "GNB-CU-UP-E1SetupResponse",
-        "unsuccessfulOutcome": "GNB-CU-UP-E1SetupFailure"
-      }
-    },
-    {
-      "id": "e1ap_generated_gnb_cu_up_configuration_update",
-      "protocol": "E1AP",
-      "message": "GNB-CU-UP-ConfigurationUpdate",
-      "transaction_id": 52,
-      "procedure_code": 5,
-      "responses": {
-        "successfulOutcome": "GNB-CU-UP-ConfigurationUpdateAcknowledge",
-        "unsuccessfulOutcome": "GNB-CU-UP-ConfigurationUpdateFailure"
-      }
-    },
-    {
-      "id": "e1ap_generated_reset",
-      "protocol": "E1AP",
-      "message": "Reset",
-      "transaction_id": 53,
-      "procedure_code": 0,
-      "responses": {
-        "successfulOutcome": "ResetAcknowledge"
-      }
-    }
+  "schema_version": 2,
+  "case_paths": [
+    "tests/replay/live_cases/control/f1ap_f1_setup_request.json",
+    "tests/replay/live_cases/control/f1ap_gnb_du_configuration_update.json",
+    "tests/replay/live_cases/control/f1ap_reset.json",
+    "tests/replay/live_cases/control/e1ap_gnb_cu_up_e1_setup_request.json",
+    "tests/replay/live_cases/control/e1ap_gnb_cu_up_configuration_update.json",
+    "tests/replay/live_cases/control/e1ap_reset.json"
   ]
 }

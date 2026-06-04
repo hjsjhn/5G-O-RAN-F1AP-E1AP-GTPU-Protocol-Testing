@@ -84,11 +84,24 @@ feature/replay-issue-dashboard
 
 在使用 OrbStack 的 macOS 上，如果 Docker daemon 尚未启动，`scripts/env/start_env.sh` 会自动启动 OrbStack 并等待 Docker 就绪。
 
-如果本机还没有 `docker/srsran-src/`，先克隆 srsRAN Project 源码，因为 `docker/Dockerfile.srsran` 会从这个目录构建本地 ARM64 CU/DU/gNB 镜像：
+如果本机还没有 `docker/srsran-src/`，先克隆 srsRAN Project 源码并 checkout
+项目固定 commit，因为 `docker/Dockerfile.srsran` 和 replay ASN.1 工具会使用这个目录：
 
 ```bash
 git clone https://github.com/srsran/srsRAN_Project.git docker/srsran-src
+git -C docker/srsran-src checkout 4bf1543936d062686d64c10724d2f27a9854f065
+docker pull pavonis/srs-gnb-dev@sha256:820ba5ed9056ba8f913ef6b749bf24cd72127ceadf040d60fbc56193368bb344
 ```
+
+也可以使用安全的显式准备/检查入口：
+
+```bash
+./scripts/replay/prepare_replay_dependencies.sh --prepare
+./scripts/replay/prepare_replay_dependencies.sh --check
+```
+
+准备脚本会拒绝覆盖 dirty 的本地 srsRAN checkout；replay 构建脚本也会在源码
+commit 或 builder image 不符合固定版本时失败。
 
 `docker/compose/.env` 会由 `scripts/env/start_env.sh` 从 `docker/compose/.env.example` 自动生成；需要改 IMSI/Ki/OPc 或 IP 拓扑时再手动编辑。
 

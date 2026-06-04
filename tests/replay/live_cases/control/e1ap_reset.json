@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "e1ap_generated_reset",
+  "description": "JSON-driven E1 Reset sent on the isolated E1 association",
+  "protocol": "E1AP",
+  "message": "Reset",
+  "procedure_code": 0,
+  "transaction_id": 53,
+  "mutable_ies": ["transaction_id"],
+  "structured_ies": {
+    "transaction_id": 53,
+    "cause": "misc_unspecified",
+    "reset_scope": "e1_interface"
+  },
+  "expected_response": {
+    "outcomes": {
+      "successfulOutcome": "ResetAcknowledge"
+    }
+  },
+  "expect": {
+    "display_filter": "e1ap && e1ap.Reset_element",
+    "fields": {
+      "e1ap.procedureCode": "0",
+      "e1ap.TransactionID": "53"
+    }
+  }
+}

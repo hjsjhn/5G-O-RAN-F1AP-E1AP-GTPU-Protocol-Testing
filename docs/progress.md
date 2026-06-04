@@ -555,7 +555,7 @@ XnAP 范围：
 - [x] 提取 6 类目标 F1AP/E1AP、4 类 NGAP ASN.1 模板和当前 F1-U/N3 TEID/endpoint。
 - [x] 完成 6 类 F1AP/E1AP 控制消息结构化关键 IE mutation、强类型 ASN.1 重新编码、L1/L2 和 Stage 4 normalized round-trip。
 - [x] 完成 XnAP Handover Request/Acknowledge 离线 ASN.1 构造、解析和 Wireshark 识别。
-- [x] 使用隔离协议感知 SCTP 测试端完成 6 个生成 testcase；5 个达到真实对端 L3，F1AP/E1AP 各至少一个达到 L4。
+- [x] 使用 6 个结构化 JSON 管理消息 testcase 驱动 ASN.1 生成；同一 APER payload 贯穿 pcap/tshark 和隔离 SCTP endpoint，5 个达到真实对端 L3，F1AP/E1AP 各至少一个达到严格 transaction ID 关联的 L4。
 - [x] 完成动态 GTP-U 生成 testcase live replay。
 - [x] 完成可接受显式 testcase/mutation 的 NGAP/Open5GS 入口；普通 UERANSIM smoke 单独分类。
 - [x] 两条正常 UE flow 可独立一条命令运行并证明状态机推进；强制失败与恢复失败语义均已验收。
