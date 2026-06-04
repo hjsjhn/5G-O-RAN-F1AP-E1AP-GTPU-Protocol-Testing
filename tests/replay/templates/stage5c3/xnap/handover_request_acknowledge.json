@@ -1,0 +1,35 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.21",
+    "src_ip": "10.53.1.22"
+  },
+  "id": "xnap_handover_request_acknowledge",
+  "key_ies": {
+    "procedureCode": "0",
+    "sourceNG-RANnodeUEXnAPID": "1",
+    "targetNG-RANnodeUEXnAPID": "2"
+  },
+  "message": "HandoverRequestAcknowledge",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "2000001f000004004940020001004f40020002002a4006000001000010004d40020100",
+    "length": 35
+  },
+  "procedure_code": 0,
+  "protocol": "XnAP",
+  "schema_version": 1,
+  "source": {
+    "asn1_generator": "srsRAN Project generated XnAP ASN.1 encoder 25.10.0",
+    "construction": "minimum standards-conformant mandatory IEs; generator pack/unpack checked",
+    "course_scope": "offline parse/construct only"
+  },
+  "transport": {
+    "dst_port": 38422,
+    "ppid": 61,
+    "src_port": 38422,
+    "stream_id": "0x0000",
+    "stream_sequence": "0",
+    "tsn": "0",
+    "type": "SCTP"
+  }
+}

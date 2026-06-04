@@ -25,6 +25,48 @@
         "packet_count": {
           "minimum": 1,
           "type": "integer"
+        },
+        "normalized": {
+          "additionalProperties": false,
+          "properties": {
+            "procedure_code": {
+              "type": "integer"
+            },
+            "procedure_name": {
+              "type": "string"
+            },
+            "protocol": {
+              "enum": [
+                "GTP-U",
+                "F1AP",
+                "E1AP",
+                "NGAP",
+                "XnAP"
+              ]
+            },
+            "teid": {
+              "type": "string"
+            },
+            "message_type": {
+              "type": "string"
+            },
+            "outer_src": {
+              "type": "string"
+            },
+            "outer_dst": {
+              "type": "string"
+            },
+            "inner_src": {
+              "type": "string"
+            },
+            "inner_dst": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "protocol"
+          ],
+          "type": "object"
         }
       },
       "required": [
@@ -71,10 +113,20 @@
       "type": "object"
     },
     "protocol": {
-      "const": "GTP-U"
+      "enum": [
+        "GTP-U",
+        "F1AP",
+        "E1AP",
+        "NGAP",
+        "XnAP"
+      ]
     },
     "schema_version": {
       "const": 1
+    },
+    "template": {
+      "minLength": 1,
+      "type": "string"
     }
   },
   "required": [
@@ -82,8 +134,19 @@
     "id",
     "description",
     "protocol",
-    "packet",
     "expect"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "packet"
+      ]
+    },
+    {
+      "required": [
+        "template"
+      ]
+    }
   ],
   "type": "object",
   "$defs": {

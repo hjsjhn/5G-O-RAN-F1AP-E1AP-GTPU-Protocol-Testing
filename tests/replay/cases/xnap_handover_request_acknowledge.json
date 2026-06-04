@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "xnap_handover_request_acknowledge",
+  "description": "Offline construct XnAP HandoverRequestAcknowledge as SCTP DATA",
+  "protocol": "XnAP",
+  "template": "tests/replay/templates/stage5c3/xnap/handover_request_acknowledge.json",
+  "expect": {
+    "display_filter": "xnap && xnap.HandoverRequestAcknowledge_element",
+    "packet_count": 1,
+    "fields": {
+      "xnap.procedureCode": "0",
+      "xnap.NG_RANnodeUEXnAPID": "1,2",
+      "xnap.pduSessionId": "1",
+      "xnap.qfi": "1",
+      "sctp.data_payload_proto_id": "61"
+    },
+    "normalized": {"protocol": "XnAP", "procedure_code": 0, "procedure_name": "HandoverRequestAcknowledge"}
+  }
+}

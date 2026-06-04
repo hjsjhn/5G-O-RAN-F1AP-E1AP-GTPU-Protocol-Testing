@@ -12,7 +12,15 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from encode_gtpu import encode_packet, load_case, write_pcap
+from encode_gtpu import encode_packet as encode_gtpu_packet
+from encode_gtpu import load_case as load_gtpu_case
+from encode_gtpu import write_pcap
+from encode_sctp_template import (
+    encode_packet as encode_sctp_packet,
+    extract_sctp_data_payload,
+    load_case as load_sctp_case,
+    resolve_template,
+)
 
 
 def run(cmd: list[str]) -> str:
@@ -50,11 +58,47 @@ def tshark_rows(pcap: Path, display_filter: str, fields: list[str]) -> list[dict
     return [dict(row) for row in csv.DictReader(output.splitlines(), delimiter="\t")]
 
 
+def tshark_count(pcap: Path, display_filter: str) -> int:
+    output = run(
+        ["tshark", "-r", str(pcap), "-Y", display_filter, "-T", "fields", "-e", "frame.number"]
+    )
+    return len([line for line in output.splitlines() if line])
+
+
+def stage4_normalized_record(pcap: Path, case_id: str, protocol: str) -> dict:
+    output_dir = Path("json/replay_results/normalized") / case_id
+    pcap_arg = "--gtpu-pcap" if protocol == "GTP-U" else "--sctp-pcap"
+    record_type = "gtpu_packets" if protocol == "GTP-U" else "control_plane_packets"
+    run(
+        [
+            sys.executable,
+            "scripts/parse/normalize_pcaps.py",
+            pcap_arg,
+            str(pcap),
+            "--prefix",
+            case_id,
+            "-o",
+            str(output_dir),
+        ]
+    )
+    records = json.loads((output_dir / f"{case_id}_{record_type}.json").read_text(encoding="utf-8"))
+    return records[0] if records else {}
+
+
 def validate_case(case_path: Path, pcap_dir: Path) -> dict:
-    case = load_case(case_path)
+    raw_case = json.loads(case_path.read_text(encoding="utf-8"))
+    if raw_case.get("protocol") == "GTP-U":
+        case = load_gtpu_case(case_path)
+        packet = encode_gtpu_packet(case)
+        source_payload = None
+    else:
+        case = load_sctp_case(case_path)
+        packet = encode_sctp_packet(case, case_path)
+        _, template = resolve_template(case, case_path)
+        source_payload = template["payload"]["hex"].lower()
     case_id = case["id"]
     pcap_path = pcap_dir / f"{case_id}.pcap"
-    write_pcap(pcap_path, [encode_packet(case)])
+    write_pcap(pcap_path, [packet])
 
     expect = case.get("expect", {})
     expected_fields = expect.get("fields", {})
@@ -72,6 +116,15 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
             "passed": len(rows) == expected_count,
         }
     )
+    malformed_count = tshark_count(pcap_path, "_ws.malformed")
+    checks.append(
+        {
+            "name": "not_malformed",
+            "expected": 0,
+            "actual": malformed_count,
+            "passed": malformed_count == 0,
+        }
+    )
 
     first = rows[0] if rows else {}
     for field, expected in expected_fields.items():
@@ -85,6 +138,47 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
             }
         )
 
+    normalized = None
+    if source_payload is not None:
+        round_trip = extract_sctp_data_payload(packet).hex()
+        checks.append(
+            {
+                "name": "aper_payload_round_trip",
+                "expected": source_payload,
+                "actual": round_trip,
+                "passed": round_trip == source_payload,
+            }
+        )
+    normalized_expect = expect.get("normalized", {})
+    if normalized_expect:
+        normalized = stage4_normalized_record(pcap_path, case_id, case["protocol"])
+        if case["protocol"] == "GTP-U":
+            actual_normalized = {
+                "protocol": normalized.get("protocol"),
+                "teid": normalized.get("gtp", {}).get("teid"),
+                "message_type": normalized.get("gtp", {}).get("message_type"),
+                "outer_src": normalized.get("outer_ip", {}).get("src"),
+                "outer_dst": normalized.get("outer_ip", {}).get("dst"),
+                "inner_src": normalized.get("inner_ip", {}).get("src"),
+                "inner_dst": normalized.get("inner_ip", {}).get("dst"),
+            }
+        else:
+            actual_normalized = {
+                "protocol": normalized.get("protocol"),
+                "procedure_code": normalized.get("procedure", {}).get("code"),
+                "procedure_name": normalized.get("procedure", {}).get("name"),
+            }
+        for name, expected in normalized_expect.items():
+            actual = actual_normalized.get(name)
+            checks.append(
+                {
+                    "name": f"stage4_normalized.{name}",
+                    "expected": expected,
+                    "actual": actual,
+                    "passed": actual == expected,
+                }
+            )
+
     return {
         "id": case_id,
         "description": case.get("description", ""),
@@ -92,6 +186,7 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
         "source_case": str(case_path),
         "generated_pcap": str(pcap_path),
         "display_filter": display_filter,
+        "stage4_normalized": normalized,
         "passed": all(check["passed"] for check in checks),
         "checks": checks,
     }

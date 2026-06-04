@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "e1ap_bearercontextmodificationrequest",
+  "description": "Reconstruct captured E1AP BearerContextModificationRequest as SCTP DATA",
+  "protocol": "E1AP",
+  "template": "tests/replay/templates/stage5c2/control/e1ap_bearercontextmodificationrequest.json",
+  "expect": {
+    "display_filter": "e1ap && e1ap.BearerContextModificationRequest_element",
+    "packet_count": 1,
+    "fields": {"e1ap.procedureCode": "9", "sctp.data_payload_proto_id": "64"},
+    "normalized": {"protocol": "E1AP", "procedure_code": 9, "procedure_name": "BearerContextModificationRequest"}
+  }
+}

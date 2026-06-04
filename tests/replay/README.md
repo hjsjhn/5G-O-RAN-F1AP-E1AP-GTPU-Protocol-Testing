@@ -27,6 +27,19 @@ tests/replay/templates/stage5c2/
 They are inputs for later offline construction tests, not claims of live replay
 success.
 
+Stage 5C.3 also contains reproducibly constructed XnAP templates:
+
+```text
+tests/replay/templates/stage5c3/xnap/
+```
+
+Rebuild them with the local ignored `docker/srsran-src` tree and compare the
+generated APER payloads with the committed templates:
+
+```bash
+./scripts/replay/check_xnap_template_generation.sh
+```
+
 ## Schema Version 1
 
 The machine-readable schema is:
@@ -41,10 +54,22 @@ Required top-level fields:
 |------|-------------|
 | `schema_version` | Must be `1` |
 | `id` | Stable testcase identifier |
-| `protocol` | Current encoder supports `GTP-U` |
-| `packet` | Packet fields used by the encoder |
+| `protocol` | `GTP-U`, `F1AP`, `E1AP`, `NGAP`, or `XnAP` |
+| `packet` / `template` | GTP-U packet fields or a traceable ASN.1/SCTP template path |
 | `expect` | tshark display filter and exact expected fields |
 
 For GTP-U cases, `packet` describes Ethernet, outer IPv4, UDP, GTP-U, inner IPv4, and ICMP echo fields. Integer fields may use decimal numbers or strings such as `0x00007cd5`.
 
-The runner writes one packet per testcase and validates the first packet matching `expect.display_filter`.
+For SCTP application protocols, `template` supplies the legal APER payload,
+direction, ports, stream, TSN, and PPID. The encoder rebuilds
+Ethernet/IPv4/SCTP/DATA and verifies that the payload can be read back exactly.
+
+The runner writes one packet per testcase and checks:
+
+- the expected tshark fields and packet count;
+- no `_ws.malformed` packet;
+- exact APER payload round-trip for control messages;
+- Stage 4 normalized protocol, procedure code, and procedure name.
+
+This runner proves L1/L2 offline encoding only. It does not claim L3 peer
+recognition or L4 state-machine advancement.

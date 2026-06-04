@@ -28,6 +28,7 @@ CONTROL_BASE_FIELDS = [
     "f1ap.procedureCode",
     "ngap.procedureCode",
     "e1ap.procedureCode",
+    "xnap.procedureCode",
 ]
 
 CONTROL_OPTIONAL_FIELDS = [
@@ -49,6 +50,15 @@ CONTROL_OPTIONAL_FIELDS = [
     "e1ap.qoS_Flow_Identifier",
     "e1ap.transportLayerAddress",
     "e1ap.TransportLayerAddressIPv4",
+    "xnap.NG_RANnodeUEXnAPID",
+    "xnap.targetNG_RANnodeUEXnAPID",
+    "xnap.PDUSession_ID",
+    "xnap.pduSessionId",
+    "xnap.radioNetwork",
+    "xnap.NR_Cell_Identity",
+    "xnap.plmn_id",
+    "xnap.qfi",
+    "xnap.ng_c_UE_reference",
 ]
 
 GTPU_BASE_FIELDS = [
@@ -181,7 +191,14 @@ def protocol_from_row(row: dict[str, str]) -> str:
         return "NGAP"
     if "E1AP" in proto:
         return "E1AP"
-    for prefix, name in (("f1ap.", "F1AP"), ("ngap.", "NGAP"), ("e1ap.", "E1AP")):
+    if "XnAP" in proto:
+        return "XnAP"
+    for prefix, name in (
+        ("f1ap.", "F1AP"),
+        ("ngap.", "NGAP"),
+        ("e1ap.", "E1AP"),
+        ("xnap.", "XnAP"),
+    ):
         if any(key.startswith(prefix) and value for key, value in row.items()):
             return name
     return proto or "UNKNOWN"
@@ -207,6 +224,7 @@ def control_procedure(row: dict[str, str], protocol: str) -> tuple[int | None, s
         "F1AP": "f1ap.procedureCode",
         "NGAP": "ngap.procedureCode",
         "E1AP": "e1ap.procedureCode",
+        "XnAP": "xnap.procedureCode",
     }.get(protocol)
     code = as_int(row.get(field, "")) if field else None
     info_name = clean_info_message(row.get("_ws.col.Info", ""))
@@ -229,14 +247,14 @@ def compact_ies(row: dict[str, str], prefix: str) -> dict[str, str | list[str]]:
 
 
 def normalize_control(pcap: Path, fields: list[str]) -> list[dict]:
-    rows = tshark_rows(pcap, "f1ap || ngap || e1ap", fields)
+    rows = tshark_rows(pcap, "f1ap || ngap || e1ap || xnap", fields)
     records: list[dict] = []
     for row in rows:
         protocol = protocol_from_row(row)
         code, name = control_procedure(row, protocol)
         src_ips = split_values(row.get("ip.src", ""))
         dst_ips = split_values(row.get("ip.dst", ""))
-        prefix = {"F1AP": "f1ap.", "NGAP": "ngap.", "E1AP": "e1ap."}.get(protocol, "")
+        prefix = {"F1AP": "f1ap.", "NGAP": "ngap.", "E1AP": "e1ap.", "XnAP": "xnap."}.get(protocol, "")
         records.append(
             {
                 "frame": as_int(row.get("frame.number", "")),

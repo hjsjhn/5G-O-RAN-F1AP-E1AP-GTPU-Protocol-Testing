@@ -17,8 +17,8 @@
 
 | 课程基本功能 | 必须覆盖 | 当前状态 | Stage 5C 责任 |
 |---|---|---|---|
-| 结构化 JSON 解析 | E1AP、F1AP、XnAP、GTP-U 常用 IE | F1AP/E1AP/GTP-U 已完成；XnAP 待完成 | 补 XnAP 离线解析/构造样例 |
-| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | GTP-U 离线编码 MVP 完成；控制面和对端验证待完成 | 完成 F1AP/E1AP 控制消息编码、各协议验证与回放 |
+| 结构化 JSON 解析 | E1AP、F1AP、XnAP、GTP-U 常用 IE | F1AP/E1AP/GTP-U 已完成；XnAP 离线样例已完成 | 继续扩展对端验证结果 |
+| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | 6 类 F1AP/E1AP + GTP-U + 2 类 XnAP 已达到 L1/L2；对端验证待完成 | 完成 F1AP/E1AP/GTP-U 对端验证 |
 | 两个完整 UE 流程 | 例如注册 + PDU Session、注册 + 注销；推进状态机并输出日志 | 5C.2 已完成注册 + PDU Session、注册 + Release 的结构化自动测试 | 自动化两条 flow 并验证状态机 |
 | 跨协议层分析 | 分析与 NG 接口关联的交互 | NGAP 已抓包/解析 | 将 NGAP 纳入 flow timeline、Open5GS issue 测试和回放验证 |
 | 加分项 2 | 自动生成网络组件可正确接收的测试例 | 部分完成 | 完成生成、回放、日志/响应检查和报告闭环 |
@@ -29,10 +29,10 @@
 
 | 协议 | JSON 解析 | JSON/template → pcap | Wireshark 验证 | 对端组件验证/回放 |
 |---|---|---|---|---|
-| F1AP | 已完成 | 必须完成，计入至少 5 类控制消息 | 必须完成 | 选定消息必须被 DU/CU 接收和识别 |
-| E1AP | 已完成 | 必须完成，计入至少 5 类控制消息 | 必须完成 | 选定消息必须被 CU-CP/CU-UP 接收和识别 |
+| F1AP | 已完成 | 3 类目标消息已完成 L1 | 3 类目标消息已完成 L2 | 选定消息必须被 DU/CU 接收和识别 |
+| E1AP | 已完成 | 3 类目标消息已完成 L1 | 3 类目标消息已完成 L2 | 选定消息必须被 CU-CP/CU-UP 接收和识别 |
 | GTP-U | 已完成 | MVP 已完成，继续补扩展头、mutation | 已完成基础验证 | 必须完成 UDP/2152 live replay 和接收证据 |
-| XnAP | 待补离线样例 | 必须完成离线解析/构造展示 | 必须完成 | 根据 Stage 4.5 约定，不要求当前环境 live replay |
+| XnAP | Handover Request/Acknowledge 离线样例已完成 | srsRAN ASN.1 构造器已完成 | 两类消息已完成 L2 | 根据 Stage 4.5 约定，不要求当前环境 live replay |
 | NGAP | 已完成 | 作为跨层和 Open5GS issue 测试扩展 | 必须完成相关测试消息验证 | 必须用于 Open5GS 对端/issue 测试 |
 
 ## 控制消息覆盖目标
@@ -222,21 +222,24 @@ Dashboard 使用前面产生的真实结果：
 - [x] GTP-U tshark 和 Stage 4 round-trip 基础验证。
 - [x] 两条完整 UE flow 的结构化自动测试。
 - [x] F1AP/E1AP/NGAP 合法模板与当前 GTP-U endpoint/TEID 提取。
-- [ ] 至少 5 类控制消息可逆编码和 Wireshark 验证。
-- [ ] XnAP 离线解析/构造样例。
+- [x] 至少 5 类控制消息可逆编码和 Wireshark 验证。
+- [x] XnAP 离线解析/构造样例。
 - [ ] F1AP/E1AP/GTP-U/NGAP 对端组件验证。
 - [ ] Open5GS issue-driven 测试。
 - [ ] Dashboard。
 
 ## 立即执行项
 
-下一项是 **5C.3：多协议离线可逆编码与 Wireshark 验证**。
+下一项是 **5C.4：多协议对端组件验证与回放**。
 
 其直接交付物是：
 
-1. 注册 + PDU Session、注册 + 注销两条结构化 flow 测试。
-2. F1AP/E1AP/NGAP 合法 ASN.1 payload 模板。
-3. 当前 GTP-U endpoint/TEID 模板。
-4. 控制消息覆盖缺口报告。
+1. 至少 5 类 F1AP/E1AP 控制消息的真实对端 L3 证据。
+2. F1AP、E1AP 各至少一个预期响应/状态推进证据。
+3. 动态 TEID/endpoint 的 GTP-U live replay 与接收证据。
+4. 默认 dry-run 的 NGAP/Open5GS 协议测试入口。
 
-5C.2 已通过，报告见 `reports/testcase_reports/stage5c2-flow-template-report.md`。按 5C.3 同时推进 F1AP/E1AP/XnAP/GTP-U 的离线编码和验证，再进入多协议对端回放。
+5C.2 和 5C.3 已通过，报告分别见
+`reports/testcase_reports/stage5c2-flow-template-report.md` 和
+`reports/testcase_reports/stage5c3-offline-encoding-report.md`。下一步进入
+F1AP/E1AP/GTP-U 多协议对端验证，并建立 NGAP/Open5GS 测试入口。

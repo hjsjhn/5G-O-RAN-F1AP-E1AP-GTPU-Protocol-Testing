@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "f1ap_uecontextreleasecommand",
+  "description": "Reconstruct captured F1AP UEContextReleaseCommand as SCTP DATA",
+  "protocol": "F1AP",
+  "template": "tests/replay/templates/stage5c2/control/f1ap_uecontextreleasecommand.json",
+  "expect": {
+    "display_filter": "f1ap && f1ap.UEContextReleaseCommand_element",
+    "packet_count": 1,
+    "fields": {"f1ap.procedureCode": "6", "sctp.data_payload_proto_id": "62"},
+    "normalized": {"protocol": "F1AP", "procedure_code": 6, "procedure_name": "UEContextReleaseCommand"}
+  }
+}
