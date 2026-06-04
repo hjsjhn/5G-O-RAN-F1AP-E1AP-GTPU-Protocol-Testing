@@ -80,6 +80,8 @@ feature/replay-issue-dashboard
 
 本仓库没有 `scripts/setup.sh`。当前启动脚本会自动创建 `docker/compose/.env`，也会在本地镜像缺失时构建 `srsran/gnb:local-arm64`。
 
+在使用 OrbStack 的 macOS 上，如果 Docker daemon 尚未启动，`scripts/env/start_env.sh` 会自动启动 OrbStack 并等待 Docker 就绪。
+
 如果本机还没有 `docker/srsran-src/`，先克隆 srsRAN Project 源码，因为 `docker/Dockerfile.srsran` 会从这个目录构建本地 ARM64 CU/DU/gNB 镜像：
 
 ```bash

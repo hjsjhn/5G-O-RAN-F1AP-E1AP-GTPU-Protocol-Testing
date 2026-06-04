@@ -5,6 +5,12 @@
 
 This branch owns the final demonstration path that does not depend on F1 or N2 handover being fully successful.
 
+The concrete gated execution order is documented in:
+
+```text
+docs/replay-execution-plan.md
+```
+
 ## Primary Goal
 
 Build a reproducible workflow that takes captured or constructed protocol messages, normalizes them into JSON/templates, encodes them back into recognizable packets, runs automated UE-flow test cases, and presents the result in a dashboard.
