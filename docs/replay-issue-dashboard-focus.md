@@ -60,14 +60,15 @@ Build a reproducible workflow that takes captured or constructed protocol messag
 
 ### 5C.1 Replay Data Model
 
-- Define replay testcase directory layout.
-- Define message template schema.
-- Add sample templates from existing normalized captures.
+- [x] Define replay testcase directory layout.
+- [x] Define message template schema.
+- [x] Add initial GTP-U uplink/downlink testcase templates.
 
 ### 5C.2 Encoder Prototype
 
-- Generate at least one recognizable pcap/message per target protocol class.
-- Verify generated outputs with tshark.
+- [x] Generate recognizable GTP-U pcap messages.
+- [x] Verify GTP-U generated outputs with tshark.
+- [ ] Extend the encoder/validator framework to control-plane protocol classes.
 
 ### 5C.3 Automated Flow Tests
 

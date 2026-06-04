@@ -2,6 +2,7 @@
 captures/raw/*.pcap
 captures/processed/*.pcap
 captures/generated/*.pcap
+captures/generated/**/*.pcap
 
 # Local AI agent context
 CLAUDE.md
@@ -12,6 +13,8 @@ claude-*.md
 
 # tshark raw JSON (can be regenerated)
 json/tshark_raw/*.json
+json/replay_results/*.json
+json/replay_results/**/*.json
 
 # Logs
 logs/**/*.log

@@ -1,6 +1,6 @@
 # 实施进度
 
-> 最后更新：2026-05-30
+> 最后更新：2026-06-04
 
 ## 总览
 
@@ -15,7 +15,7 @@
 | 4.5. 可复现性与并行计划调整 | ✅ 完成 | 固定 Open5GS digest，重定义 XnAP，拆分 F1/N2/replay 三条线 |
 | 5A. F1 Handover 实验线 | ⬜ 待开始 | 同 CU-CP 下双 cell / F1 handover 抓包和解析 |
 | 5B. N2 Handover 实验线 | ⬜ 待开始 | 两套 gNB/CU-DU 接同一 Open5GS，尝试 AMF-mediated handover |
-| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 已在 `feature/replay-issue-dashboard` 固定 focus 和里程碑 |
+| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | Replay schema、GTP-U encoder 和 tshark 自动验证 MVP 已完成 |
 | 6. 前端展示与最终报告 | ⬜ 待开始 | dashboard + 最终演示脚本 |
 
 ## 阶段 0：仓库和文档结构 ✅
@@ -529,7 +529,7 @@ docker/compose/docker-compose.n2-ho.yml
 - N2/NGAP 抓包和解析报告。
 - 支持边界报告。
 
-## 阶段 5C：编码/回放/自动测例主线 ⬜
+## 阶段 5C：编码/回放/自动测例主线 🔄
 
 目标：
 
@@ -543,6 +543,19 @@ XnAP 范围：
 - 只做离线解析/构造。
 - 不要求当前环境产生 XnAP。
 - 不要求 XnAP replay。
+
+当前进展：
+
+- [x] 定义 replay testcase v1 schema 和目录结构。
+- [x] 实现零第三方 Python 依赖的 GTP-U pcap 编码器。
+- [x] 实现一键 tshark 验证 runner 和结构化结果 JSON。
+- [x] 添加 N3 上行 ICMP Echo Request、下行 Echo Reply 两个 testcase。
+- [x] 验证生成 pcap 可以进入现有 Stage 4 normalizer。
+- [ ] 扩展控制面消息构造/编码。
+- [ ] 增加 live replay、变异测试和 Open5GS issue reproduction。
+- [ ] 将完整 UE flow 封装为自动 testcase。
+
+阶段 5C.1/MVP 报告：`reports/testcase_reports/stage5c1-replay-mvp-report.md`
 
 ## 阶段 6：前端展示与最终报告 ⬜
 

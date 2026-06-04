@@ -51,8 +51,7 @@ scripts/
   env/                  环境启动/停止/重置/检查脚本
   capture/              容器内 tcpdump 抓包脚本
   parse/                pcap → tshark JSON → 规范化 JSON
-  encode/               JSON/模板 → 二进制 → pcap（待实现）
-  replay/               报文回放/注入（待实现）
+  replay/               JSON testcase → pcap → tshark 自动验证
   validate/             Wireshark 解码验证、日志分析、报告生成（待实现）
 json/                   tshark 原始 JSON / 规范化 JSON / 消息模板
 captures/               原始抓包 / 处理后 / 生成的 pcap
@@ -174,6 +173,24 @@ git clone https://github.com/srsran/srsRAN_Project.git docker/srsran-src
 ```
 
 该脚本会收集容器 pcap/log 后停止 compose 环境。完整帧抓包优先使用 `scripts/capture/capture_traffic.sh`，因为 OrbStack 下 sidecar 抓 UDP 不可靠。
+
+### 6. 运行离线编码/回放测试
+
+```bash
+./scripts/replay/run_replay_tests.sh
+```
+
+当前 replay MVP 使用 JSON testcase 生成确定性的 GTP-U pcap，并自动调用 tshark 验证协议类型、TEID、内外层 IP、UDP 端口和 ICMP 字段。
+
+输入和 schema：
+
+- `tests/replay/cases/*.json`
+- `tests/replay/schema/replay-case-v1.schema.json`
+
+运行产物默认不提交：
+
+- `captures/generated/replay/*.pcap`
+- `json/replay_results/latest.json`
 
 ## 协议接口
 
