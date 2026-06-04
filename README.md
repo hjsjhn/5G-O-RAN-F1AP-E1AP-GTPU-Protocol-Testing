@@ -74,6 +74,8 @@ feature/replay-issue-dashboard
 
 最终交付不依赖 checkout 不同分支运行实验；不同场景应合并为 compose overlay 或 scenario 脚本。
 
+完整项目范围、课程要求映射和历史阶段计划见 [IMPLEMENTATION.md](IMPLEMENTATION.md)。当前 Stage 5C 的协议覆盖、编码、回放和验收顺序见 [docs/replay-execution-plan.md](docs/replay-execution-plan.md)。
+
 ## 快速开始
 
 ### 0. 首次准备

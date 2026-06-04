@@ -1,159 +1,242 @@
-# Stage 5C Replay / Issue / Dashboard 执行计划
+# Stage 5C 编码、回放、自动测例与展示执行计划
 
 > 更新日期：2026-06-04
 > 工作分支：`feature/replay-issue-dashboard`
 
-## 当前状态
+## 上层依据
 
-已完成：
+本计划是 `IMPLEMENTATION.md` 的 Stage 5C 细化执行计划，不替代完整实施文档。范围和验收标准必须同时符合：
 
-- baseline 自动启动、核心链路检查和 srsUE smoke 脚本。
-- Stage 4 真实流量抓包与 normalized JSON。
-- replay testcase v1 schema。
-- GTP-U JSON testcase 到 pcap 的离线编码。
-- tshark 自动验证和结构化 replay result JSON。
+1. `5G-ORAN 协议解析和测试 - 课程project.pdf`
+2. `IMPLEMENTATION.md`
+3. `reports/testcase_reports/stage4.5-plan-report.md`
 
-当前尚未完成：
+若本计划与课程要求或 `IMPLEMENTATION.md` 冲突，优先修正本计划，不能通过缩小协议范围规避课程基本要求。
 
-- 将完整 UE 注册/PDU Session/capture 流程封装为结构化 testcase。
-- GTP-U live replay/injection。
-- 控制面合法 payload 模板、构造和变异。
-- Open5GS issue reproduction。
-- dashboard。
+## 课程要求对应关系
+
+| 课程基本功能 | 必须覆盖 | 当前状态 | Stage 5C 责任 |
+|---|---|---|---|
+| 结构化 JSON 解析 | E1AP、F1AP、XnAP、GTP-U 常用 IE | F1AP/E1AP/GTP-U 已完成；XnAP 待完成 | 补 XnAP 离线解析/构造样例 |
+| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | GTP-U 离线编码 MVP 完成；控制面和对端验证待完成 | 完成 F1AP/E1AP 控制消息编码、各协议验证与回放 |
+| 两个完整 UE 流程 | 例如注册 + PDU Session、注册 + 注销；推进状态机并输出日志 | 注册 + PDU Session 已能跑；尚未形成完整结构化 testcase；注册 + 注销待完成 | 自动化两条 flow 并验证状态机 |
+| 跨协议层分析 | 分析与 NG 接口关联的交互 | NGAP 已抓包/解析 | 将 NGAP 纳入 flow timeline、Open5GS issue 测试和回放验证 |
+| 加分项 2 | 自动生成网络组件可正确接收的测试例 | 部分完成 | 完成生成、回放、日志/响应检查和报告闭环 |
+
+## 协议能力范围
+
+不能把 replay 范围缩减为 GTP-U。Stage 5C 最终协议范围如下：
+
+| 协议 | JSON 解析 | JSON/template → pcap | Wireshark 验证 | 对端组件验证/回放 |
+|---|---|---|---|---|
+| F1AP | 已完成 | 必须完成，计入至少 5 类控制消息 | 必须完成 | 选定消息必须被 DU/CU 接收和识别 |
+| E1AP | 已完成 | 必须完成，计入至少 5 类控制消息 | 必须完成 | 选定消息必须被 CU-CP/CU-UP 接收和识别 |
+| GTP-U | 已完成 | MVP 已完成，继续补扩展头、mutation | 已完成基础验证 | 必须完成 UDP/2152 live replay 和接收证据 |
+| XnAP | 待补离线样例 | 必须完成离线解析/构造展示 | 必须完成 | 根据 Stage 4.5 约定，不要求当前环境 live replay |
+| NGAP | 已完成 | 作为跨层和 Open5GS issue 测试扩展 | 必须完成相关测试消息验证 | 必须用于 Open5GS 对端/issue 测试 |
+
+## 控制消息覆盖目标
+
+课程要求至少 5 类控制消息。优先实现以下 6 类，避免刚好达到最低数量后因单个消息失败而无法交付：
+
+1. F1AP UE Context Setup Request
+2. F1AP UE Context Modification Request
+3. F1AP UE Context Release Command
+4. E1AP Bearer Context Setup Request
+5. E1AP Bearer Context Modification Request
+6. E1AP Bearer Context Release Command
+
+补充展示：
+
+- XnAP Handover Request / Request Acknowledge：离线解析、构造和 Wireshark 识别，不要求 live replay。
+- NGAP InitialUEMessage、InitialContextSetup、PDUSessionResourceSetup 或 issue 相关消息：跨层分析和 Open5GS 测试。
+
+如果当前 srsRAN 版本无法产生某类 Release 消息，必须记录证据并使用同协议的可验证替代消息，不能直接减少控制消息总数。
+
+## 验证层次
+
+每个编码 testcase 都必须明确记录验证层次：
+
+| Level | 验证内容 | 是否基本要求 |
+|---|---|---|
+| L1 | JSON/template 可以生成二进制和 pcap | 是 |
+| L2 | tshark/Wireshark 正确识别协议、procedure、关键 IE，且非 malformed | 是 |
+| L3 | 对端组件收到并在日志中识别消息 | 选定的至少 5 类 F1AP/E1AP 控制消息和 GTP-U 必须；XnAP 按约定豁免 |
+| L4 | 对端状态机推进并产生预期响应 | 两条完整 UE flow 必须；单消息回放尽量完成 |
+
+控制面协议使用 SCTP 且具有 association、stream、TSN 和状态机约束，不能把原始 pcap 直接发送当作有效对端回放。F1AP/E1AP/NGAP 的 live replay 必须通过协议感知的 SCTP 测试端或受控场景完成。
 
 ## 执行顺序
 
-后续严格按以下顺序推进。每一步必须满足验收条件后再进入下一步，避免同时开展多个未闭环功能。
-
-### Step 1：完整 Baseline Flow 自动测例
+### 5C.2：新鲜 Flow 抓包与模板提取
 
 目的：
 
-- 把目前分散的环境启动、链路检查、UE 注册、PDU Session、ping、抓包和解析串成一个命令。
-- 为后续 live replay、issue reproduction 和 dashboard 提供统一结构化输入。
+- 为控制面编码提供真实 ASN.1 payload 模板。
+- 为 Release 类消息补充注册 + 注销流程抓包。
+- 为 live replay 提供当前 session 的 endpoint、UE ID 和 TEID，禁止硬编码旧 session 值。
 
 实现：
 
-- 新增 `scripts/test/run_baseline_flow.sh`。
-- 自动执行：
-  1. `scripts/env/start_env.sh`
-  2. `scripts/env/check_core_ready.sh`
-  3. srsUE 注册和 PDU Session
-  4. UE ping 流量
-  5. SCTP/GTP-U 抓包
-  6. Stage 4 parser
-- 输出 `json/test_results/<run>.json`，至少包含：
-  - 环境和组件状态
-  - UE IP
-  - NGAP/F1AP/E1AP/GTP-U 包数量
-  - procedure 和 TEID 摘要
-  - 每个检查项的 pass/fail
+1. 将注册 + PDU Session 流程封装为结构化 testcase。
+2. 实现注册 + 注销流程，抓取释放相关 F1AP/E1AP/NGAP 消息。
+3. 从完整 SCTP pcap 中提取 DATA chunk 的协议 payload、方向、stream、procedure 和关键 IE。
+4. 从 GTP-U pcap 中提取当前 endpoint、TEID、扩展头和内层 payload。
+5. 输出可提交的小型模板元数据；raw pcap 继续忽略。
 
 验收条件：
 
-- 从已停止的项目环境开始，一条命令可以完成测试。
-- UE 获得 IPv4 地址。
-- NGAP、F1AP、E1AP、GTP-U 均存在可解析数据。
-- 失败时返回非零退出码并在结果 JSON 中说明失败检查项。
+- 两条 flow 均有结构化结果、日志和状态检查。
+- 至少获得上述 6 类目标消息中的 5 类合法 payload 模板；缺失项有明确报告。
+- 模板来源能追溯到 capture run 和 frame。
 
-### Step 2：GTP-U Live Replay
+### 5C.3：多协议离线可逆编码与 Wireshark 验证
 
 目的：
 
-- 从“生成后离线识别”升级到“向实际运行环境发送并抓到重放包”。
+- 完成课程要求中的至少 5 类控制消息 + GTP-U 可逆编码。
+- 补齐 XnAP 离线解析/构造。
 
 实现：
 
-- 从当前 baseline flow 抓包动态提取 N3 endpoint 和当前有效 TEID，禁止硬编码旧 session TEID。
-- replay sender 默认 dry-run；只有显式 `--live` 才向环境发送。
-- sender 在 CU-UP 或 UPF 的网络命名空间中发送，避免修改默认 compose 网络。
-- 先实现无害的单包 GTP-U/ICMP replay，再增加重复包和字段 mutation。
-- replay 前后自动抓包并记录组件健康状态。
+1. 扩展 testcase schema，使其支持：
+   - 协议、消息类型、procedure、方向
+   - 原始 payload/template
+   - 可修改字段和 mutation
+   - 预期 tshark 字段
+   - 预期对端行为
+2. 实现完整 pcap 构造：
+   - F1AP/E1AP/NGAP/XnAP：IP/SCTP/DATA + ASN.1 payload
+   - GTP-U：IP/UDP/GTP-U + 扩展头/内层 payload
+3. 对每个 testcase 自动执行 tshark 验证。
+4. 自动执行 round-trip 检查：
+   - template/JSON → pcap → Stage 4 parser → normalized JSON
+   - 比较协议、procedure 和关键 IE。
 
 验收条件：
 
-- live replay 包能够在 N3 抓包中被 tshark 识别。
-- 实际发送字段与 testcase 字段一致。
-- replay 后 Open5GS、CU-UP、UE 状态可检查且结果写入 JSON。
-- 默认运行不会发送 live 包。
+- 至少 5 类控制消息和 GTP-U 全部达到 L1/L2。
+- XnAP 至少有 Handover Request/Request Acknowledge 离线样例可解析和构造。
+- 所有生成包非 malformed，关键字段与 testcase 一致。
 
-### Step 3：控制面离线构造和识别
+### 5C.4：多协议对端组件验证与回放
 
 目的：
 
-- 满足控制面消息能够由 JSON/template 构造并被 tshark/Wireshark 识别的要求。
+- 验证生成的测试例不只被 Wireshark 识别，也能被实际网络组件接收和处理。
 
-实现：
+子任务：
 
-- 从 baseline flow 的真实 SCTP pcap 提取合法 ASN.1 payload template。
-- template 保存协议、procedure、方向、关键 IE 元数据和 payload。
-- 构造完整 SCTP/IP pcap，复用合法 ASN.1 payload。
-- 先覆盖至少五类消息，优先选择：
-  - NGAP InitialUEMessage
-  - NGAP InitialContextSetup
-  - NGAP PDUSessionResourceSetup
-  - F1AP F1Setup
-  - E1AP BearerContextSetup
-- mutation 首先只修改安全、长度不变且能验证的字段。
+#### F1AP 对端验证
 
-验收条件：
+- 在隔离场景中建立合法 SCTP association。
+- 以 DU 或 CU 测试端身份重放必要前置序列和目标消息。
+- 检查对端日志、解码错误、response 和 UE ID。
 
-- 五类控制面消息均可由 testcase 生成 pcap。
-- tshark 能正确识别协议、procedure 和目标关键 IE。
-- 构造结果可进入现有 Stage 4 normalizer。
+#### E1AP 对端验证
 
-### Step 4：Open5GS Issue-Driven 测试
+- 在隔离场景中建立合法 SCTP association。
+- 重放必要 E1 setup/UE context 前置序列和目标 bearer context 消息。
+- 检查 CU-CP/CU-UP 日志、response、tunnel/TEID 字段。
 
-目的：
+#### GTP-U 对端验证
 
-- 把 replay/mutation 能力用于复现 Open5GS v2.7.6 相关实现问题。
+- 在 CU-UP/UPF/DU 网络命名空间中发送 UDP/2152 测试包。
+- 动态使用当前有效 endpoint 和 TEID。
+- 自动抓取发送包、接收证据和组件健康状态。
 
-实现：
+#### NGAP / Open5GS 对端验证
 
-- 调研并筛选 2-3 个与当前 Open5GS 版本、NGAP/NAS/GTP-U 输入相关的 issue。
-- 每个 issue 建立独立 testcase，记录：
-  - issue 链接和影响组件
-  - 前置环境
-  - 原始消息与 mutation
-  - 预期行为
-  - 实际行为
-  - 是否复现及证据
-- 每个 live testcase 前后执行健康检查；必要时自动 reset baseline。
+- 使用协议感知 SCTP 测试端或隔离 gNB 场景连接 AMF。
+- 用于正常消息验证以及后续 Open5GS issue reproduction。
 
-验收条件：
+#### XnAP
 
-- 至少一个 issue 被复现，或以明确实验结果证明当前镜像不受影响。
-- 测试可重复运行，不依赖手工修改容器。
-- 测试不会永久破坏 baseline。
+- 按 Stage 4.5 约定只做离线解析/构造和 Wireshark 验证，不要求 live replay。
 
-### Step 5：Dashboard
+通用要求：
 
-目的：
-
-- 将前面产生的真实结构化结果用于最终展示，而不是制作独立演示假数据。
-
-实现：
-
-- 左侧展示信令 timeline、解析 JSON、procedure 和关键 IE。
-- 右侧展示环境状态、testcase 日志、pass/fail 和 issue reproduction 结果。
-- dashboard 只读取统一 result JSON 和 normalized JSON。
-- 提供一条命令启动本地展示。
+- 默认 dry-run；只有显式 `--live` 才发送到组件。
+- 每个 live testcase 前后执行环境健康检查。
+- 失败后可以自动恢复 baseline。
+- 结果记录 L3/L4 是否通过，不能只记录“包已发送”。
 
 验收条件：
 
-- 能选择并展示 baseline flow、offline replay、live replay 和 issue testcase。
-- 页面内容来自真实运行结果。
-- 演示流程无需手工复制日志或 JSON。
+- GTP-U 有实际发送和接收/抓包证据。
+- 选定的至少 5 类 F1AP/E1AP 控制消息达到 L3；无法达到 L3 的消息不能计入课程要求数量，必须换用可验证消息。
+- F1AP、E1AP 至少各有一个消息达到 L4；若无法达到，必须输出可复现实验和支持边界，但该边界报告不等于完成课程基本要求。
+- NGAP/Open5GS 测试端能够支撑 issue-driven 测试。
+
+### 5C.5：两条完整 UE Flow 自动测试
+
+必须实现：
+
+1. 注册 + PDU Session Establishment
+2. 注册 + Deregistration / Release
+
+每条 flow 自动完成：
+
+- 启动/检查 baseline
+- 执行 UE 行为
+- 抓取 F1AP/E1AP/NGAP/GTP-U
+- 生成跨协议 timeline
+- 检查 UE、CU、DU、Open5GS 状态机日志
+- 输出结构化 PASS/FAIL JSON 和报告
+
+验收条件：
+
+- 两条 flow 均可一条命令运行。
+- UE 与 CU/DU/5GC 日志证明状态机推进。
+- 结果包含跨协议关联字段和失败原因。
+
+### 5C.6：Open5GS Issue-Driven 测试
+
+实现：
+
+- 筛选 2-3 个与固定 Open5GS v2.7.6 镜像相关、能通过 NGAP/NAS/GTP-U 输入触发或分析的 issue。
+- 每个 issue 建立 testcase，记录 issue、影响组件、原始消息、mutation、预期、实际、健康检查和恢复结果。
+
+验收条件：
+
+- 至少一个 issue 被复现，或以可重复实验证明当前镜像不受影响。
+- 测试不依赖手工修改容器，且不会永久破坏 baseline。
+
+### 5C.7：Dashboard 与最终展示
+
+Dashboard 使用前面产生的真实结果：
+
+- 左侧：跨协议信令 timeline、解析 JSON、procedure、关键 IE、原始/变异字段。
+- 右侧：环境状态、实时日志、L1-L4 验证结果、flow 和 issue testcase 结果。
+
+验收条件：
+
+- 能展示 F1AP、E1AP、XnAP、GTP-U，以及 NGAP 跨层信息。
+- 能选择 offline encoding、对端回放、完整 flow、issue 测试结果。
+- 不依赖手工复制日志或伪造演示数据。
+
+## 当前完成状态
+
+- [x] GTP-U testcase schema MVP。
+- [x] GTP-U JSON → pcap 离线编码。
+- [x] GTP-U tshark 和 Stage 4 round-trip 基础验证。
+- [ ] 两条完整 UE flow 的结构化自动测试。
+- [ ] F1AP/E1AP 合法模板提取。
+- [ ] 至少 5 类控制消息可逆编码和 Wireshark 验证。
+- [ ] XnAP 离线解析/构造样例。
+- [ ] F1AP/E1AP/GTP-U/NGAP 对端组件验证。
+- [ ] Open5GS issue-driven 测试。
+- [ ] Dashboard。
 
 ## 立即执行项
 
-下一项只做 **Step 1：完整 Baseline Flow 自动测例**。
+下一项是 **5C.2：新鲜 Flow 抓包与模板提取**，不是单独做 GTP-U live replay。
 
-原因：
+其直接交付物是：
 
-- 当前环境和 UE flow 已验证可运行。
-- live replay 需要动态获取当前 TEID 和 endpoint。
-- 控制面模板需要稳定、自动生成的新鲜抓包。
-- dashboard 和 issue 测试都依赖统一 testcase result JSON。
+1. 注册 + PDU Session、注册 + 注销两条结构化 flow 测试。
+2. F1AP/E1AP/NGAP 合法 ASN.1 payload 模板。
+3. 当前 GTP-U endpoint/TEID 模板。
+4. 控制消息覆盖缺口报告。
 
-Step 1 完成前，不开始 dashboard，也不直接向 Open5GS 注入控制面变异消息。
+完成 5C.2 后，按 5C.3 同时推进 F1AP/E1AP/XnAP/GTP-U 的离线编码和验证，再进入多协议对端回放。

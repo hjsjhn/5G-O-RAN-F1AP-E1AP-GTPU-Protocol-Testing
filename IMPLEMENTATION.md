@@ -27,6 +27,8 @@
 阶段 5C：编码/回放/自动测例主线
   - JSON/template → pcap
   - GTP-U 和至少 5 类控制面消息可被 tshark/Wireshark 识别
+  - F1AP/E1AP/GTP-U 必须进入对端组件验证；NGAP 用于跨层/Open5GS issue 测试
+  - XnAP 仍需完成离线解析/构造和 Wireshark 识别，仅豁免 live replay
   - 两条完整 UE flow 自动化测试
   - Open5GS v2.7.6 issue-driven bug reproduction 和安全分析
 
@@ -45,6 +47,8 @@ feature/replay-issue-dashboard
 ```
 
 协作约束见 `docs/collaboration.md`。下面的历史计划作为背景参考；若与 v2 冲突，以本节为准。
+
+Stage 5C 的详细执行顺序、协议覆盖矩阵和验收门槛见 `docs/replay-execution-plan.md`。其中 “GTP-U 优先” 只表示编码实现起点，不能解释为只对 GTP-U 做 live replay 或省略 F1AP/E1AP 的对端验证。
 
 ---
 

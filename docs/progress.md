@@ -551,11 +551,15 @@ XnAP 范围：
 - [x] 实现一键 tshark 验证 runner 和结构化结果 JSON。
 - [x] 添加 N3 上行 ICMP Echo Request、下行 Echo Reply 两个 testcase。
 - [x] 验证生成 pcap 可以进入现有 Stage 4 normalizer。
-- [ ] 扩展控制面消息构造/编码。
-- [ ] 增加 live replay、变异测试和 Open5GS issue reproduction。
-- [ ] 将完整 UE flow 封装为自动 testcase。
+- [ ] 自动化注册 + PDU Session、注册 + 注销两条完整 UE flow，并提取控制面模板。
+- [ ] 完成至少 5 类 F1AP/E1AP 控制消息可逆编码和 Wireshark 验证。
+- [ ] 补齐 XnAP 离线解析/构造和 Wireshark 识别。
+- [ ] 完成 F1AP/E1AP/GTP-U 多协议对端验证；NGAP 用于 Open5GS issue 测试。
+- [ ] 增加 mutation、Open5GS issue reproduction 和 dashboard。
 
 阶段 5C.1/MVP 报告：`reports/testcase_reports/stage5c1-replay-mvp-report.md`
+
+Stage 5C 完整执行计划：`docs/replay-execution-plan.md`
 
 ## 阶段 6：前端展示与最终报告 ⬜
 
