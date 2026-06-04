@@ -15,7 +15,7 @@
 | 4.5. 可复现性与并行计划调整 | ✅ 完成 | 固定 Open5GS digest，重定义 XnAP，拆分 F1/N2/replay 三条线 |
 | 5A. F1 Handover 实验线 | ⬜ 待开始 | 同 CU-CP 下双 cell / F1 handover 抓包和解析 |
 | 5B. N2 Handover 实验线 | ⬜ 待开始 | 两套 gNB/CU-DU 接同一 Open5GS，尝试 AMF-mediated handover |
-| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 5C.2 flow、5C.3 离线编码、5C.4 对端验证已完成 |
+| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 5C.2 至 5C.5 已完成；后续为 issue 测试与 dashboard |
 | 6. 前端展示与最终报告 | ⬜ 待开始 | dashboard + 最终演示脚本 |
 
 ## 阶段 0：仓库和文档结构 ✅
@@ -556,6 +556,7 @@ XnAP 范围：
 - [x] 完成 6 类 F1AP/E1AP 控制消息可逆编码、Wireshark 验证和 Stage 4 round-trip。
 - [x] 完成 XnAP Handover Request/Acknowledge 离线 ASN.1 构造、解析和 Wireshark 识别。
 - [x] 完成 6 类 F1AP/E1AP 真实对端 L3/L4、动态 GTP-U live replay 和 NGAP/Open5GS 测试入口。
+- [x] 完成 5C.5 两条 UE flow 独立一条命令最终验收；两次结束后 baseline 健康。
 - [ ] 增加 mutation、Open5GS issue reproduction 和 dashboard。
 
 阶段 5C.1/MVP 报告：`reports/testcase_reports/stage5c1-replay-mvp-report.md`
@@ -565,6 +566,8 @@ XnAP 范围：
 阶段 5C.3 报告：`reports/testcase_reports/stage5c3-offline-encoding-report.md`
 
 阶段 5C.4 报告：`reports/testcase_reports/stage5c4-peer-validation-report.md`
+
+阶段 5C.5 报告：`reports/testcase_reports/stage5c5-complete-flow-report.md`
 
 Stage 5C 完整执行计划：`docs/replay-execution-plan.md`
 

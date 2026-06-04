@@ -230,17 +230,17 @@ Dashboard 使用前面产生的真实结果：
 
 ## 立即执行项
 
-下一项是 **5C.5：两条完整 UE Flow 最终独立验收**。
+下一项是 **5C.6：Open5GS Issue-Driven 测试**。
 
 其直接交付物是：
 
-1. 注册 + PDU Session flow 的独立一条命令最终 PASS。
-2. 注册 + inactivity-triggered Release flow 的独立一条命令最终 PASS。
-3. UE、CU-CP、CU-UP、DU、Open5GS 日志和跨协议 timeline 均证明状态机推进。
-4. 两次 flow 后 baseline 均恢复健康。
+1. 针对固定 Open5GS v2.7.6 镜像筛选 issue 候选。
+2. 建立默认安全的 mutation/replay testcase。
+3. 记录预期、实际、健康检查和恢复结果。
 
-5C.2、5C.3 和 5C.4 已通过，报告分别见
+5C.2、5C.3、5C.4 和 5C.5 已通过，报告分别见
 `reports/testcase_reports/stage5c2-flow-template-report.md` 和
 `reports/testcase_reports/stage5c3-offline-encoding-report.md`、
-`reports/testcase_reports/stage5c4-peer-validation-report.md`。下一步对两条
-完整 UE flow 做最终独立验收和报告收口。
+`reports/testcase_reports/stage5c4-peer-validation-report.md`、
+`reports/testcase_reports/stage5c5-complete-flow-report.md`。下一步进入
+Open5GS issue-driven 测试。
