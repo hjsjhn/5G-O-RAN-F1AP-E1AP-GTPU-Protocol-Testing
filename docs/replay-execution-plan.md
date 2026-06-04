@@ -18,7 +18,7 @@
 | 课程基本功能 | 必须覆盖 | 当前状态 | Stage 5C 责任 |
 |---|---|---|---|
 | 结构化 JSON 解析 | E1AP、F1AP、XnAP、GTP-U 常用 IE | F1AP/E1AP/GTP-U 已完成；XnAP 离线样例已完成 | 继续扩展对端验证结果 |
-| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | 6 类 F1AP/E1AP + GTP-U + 2 类 XnAP 已达到 L1/L2；对端验证待完成 | 完成 F1AP/E1AP/GTP-U 对端验证 |
+| 可逆编码与验证 | 至少 5 类控制消息 + GTP-U；生成 pcap；Wireshark 和对端正确识别 | 6 类 F1AP/E1AP 已完成结构化关键 IE mutation、强类型 APER 重新编码和 L1/L2；5 类生成控制 testcase 达到真实对端 L3 | 继续扩展更多 IE/issue testcase |
 | 两个完整 UE 流程 | 例如注册 + PDU Session、注册 + 注销；推进状态机并输出日志 | 5C.2 已完成注册 + PDU Session、注册 + Release 的结构化自动测试 | 自动化两条 flow 并验证状态机 |
 | 跨协议层分析 | 分析与 NG 接口关联的交互 | NGAP 已抓包/解析 | 将 NGAP 纳入 flow timeline、Open5GS issue 测试和回放验证 |
 | 加分项 2 | 自动生成网络组件可正确接收的测试例 | 部分完成 | 完成生成、回放、日志/响应检查和报告闭环 |
@@ -29,11 +29,11 @@
 
 | 协议 | JSON 解析 | JSON/template → pcap | Wireshark 验证 | 对端组件验证/回放 |
 |---|---|---|---|---|
-| F1AP | 已完成 | 3 类目标消息已完成 L1 | 3 类目标消息已完成 L2 | 选定消息必须被 DU/CU 接收和识别 |
-| E1AP | 已完成 | 3 类目标消息已完成 L1 | 3 类目标消息已完成 L2 | 选定消息必须被 CU-CP/CU-UP 接收和识别 |
+| F1AP | 已完成 | 3 类关键 IE mutation + 强类型 ASN.1 APER 重新编码 | 3 类目标消息完成 L2 | 生成 GNBDUConfigurationUpdate/Reset 达到 L3，Configuration Update 达到 L4 |
+| E1AP | 已完成 | 3 类关键 IE mutation + 强类型 ASN.1 APER 重新编码 | 3 类目标消息完成 L2 | 生成 Setup/ConfigurationUpdate/Reset 达到 L3，Setup 达到 L4 |
 | GTP-U | 已完成 | MVP 已完成，继续补扩展头、mutation | 已完成基础验证 | 必须完成 UDP/2152 live replay 和接收证据 |
 | XnAP | Handover Request/Acknowledge 离线样例已完成 | srsRAN ASN.1 构造器已完成 | 两类消息已完成 L2 | 根据 Stage 4.5 约定，不要求当前环境 live replay |
-| NGAP | 已完成 | 作为跨层和 Open5GS issue 测试扩展 | 必须完成相关测试消息验证 | 必须用于 Open5GS 对端/issue 测试 |
+| NGAP | 已完成 | 普通 smoke 与显式 testcase/mutation 入口已分离 | mutation 场景由协议感知 UERANSIM 生成 | Open5GS TAC mismatch testcase 已运行；payload replay/issue reproduction 后续扩展 |
 
 ## 控制消息覆盖目标
 
@@ -222,25 +222,23 @@ Dashboard 使用前面产生的真实结果：
 - [x] GTP-U tshark 和 Stage 4 round-trip 基础验证。
 - [x] 两条完整 UE flow 的结构化自动测试。
 - [x] F1AP/E1AP/NGAP 合法模板与当前 GTP-U endpoint/TEID 提取。
-- [x] 至少 5 类控制消息可逆编码和 Wireshark 验证。
+- [x] 6 类 F1AP/E1AP 控制消息完成结构化关键 IE mutation、强类型 APER 重新编码和 L1/L2。
 - [x] XnAP 离线解析/构造样例。
-- [x] F1AP/E1AP/GTP-U/NGAP 对端组件验证。
+- [x] F1AP/E1AP 生成 testcase 使用隔离协议感知 SCTP 测试端验证；5 类达到 L3，F1AP/E1AP 各一类达到 L4。
+- [x] GTP-U 生成 testcase live replay。
+- [x] NGAP/Open5GS testcase/mutation 入口；普通 UERANSIM smoke 已单独保留。
 - [ ] Open5GS issue-driven 测试。
 - [ ] Dashboard。
 
-## 立即执行项
+## 当前阶段结论
 
-下一项是 **5C.6：Open5GS Issue-Driven 测试**。
+5C.2、5C.3、5C.4、5C.5 已按本计划实际运行并通过各自验收。自然 UE flow
+证据仍只计入 5C.5；5C.4 控制面等级只来自本次生成 testcase、独立 association、
+CU-CP 接收日志和响应。后续工作是 5C.6 Open5GS issue-driven 测试与 5C.7
+dashboard，不反向扩大已声明的 L1-L4。
 
-其直接交付物是：
-
-1. 针对固定 Open5GS v2.7.6 镜像筛选 issue 候选。
-2. 建立默认安全的 mutation/replay testcase。
-3. 记录预期、实际、健康检查和恢复结果。
-
-5C.2、5C.3、5C.4 和 5C.5 已通过，报告分别见
+报告见
 `reports/testcase_reports/stage5c2-flow-template-report.md` 和
 `reports/testcase_reports/stage5c3-offline-encoding-report.md`、
 `reports/testcase_reports/stage5c4-peer-validation-report.md`、
-`reports/testcase_reports/stage5c5-complete-flow-report.md`。下一步进入
-Open5GS issue-driven 测试。
+`reports/testcase_reports/stage5c5-complete-flow-report.md`。

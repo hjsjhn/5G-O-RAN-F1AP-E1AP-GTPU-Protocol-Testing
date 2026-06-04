@@ -15,7 +15,7 @@
 | 4.5. 可复现性与并行计划调整 | ✅ 完成 | 固定 Open5GS digest，重定义 XnAP，拆分 F1/N2/replay 三条线 |
 | 5A. F1 Handover 实验线 | ⬜ 待开始 | 同 CU-CP 下双 cell / F1 handover 抓包和解析 |
 | 5B. N2 Handover 实验线 | ⬜ 待开始 | 两套 gNB/CU-DU 接同一 Open5GS，尝试 AMF-mediated handover |
-| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 5C.2 至 5C.5 已完成；后续为 issue 测试与 dashboard |
+| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 5C.2–5C.5 已验收；Open5GS issue reproduction 与 dashboard 待完成 |
 | 6. 前端展示与最终报告 | ⬜ 待开始 | dashboard + 最终演示脚本 |
 
 ## 阶段 0：仓库和文档结构 ✅
@@ -553,11 +553,13 @@ XnAP 范围：
 - [x] 验证生成 pcap 可以进入现有 Stage 4 normalizer。
 - [x] 自动化注册 + PDU Session、注册 + inactivity-triggered Release 两条完整 UE flow。
 - [x] 提取 6 类目标 F1AP/E1AP、4 类 NGAP ASN.1 模板和当前 F1-U/N3 TEID/endpoint。
-- [x] 完成 6 类 F1AP/E1AP 控制消息可逆编码、Wireshark 验证和 Stage 4 round-trip。
+- [x] 完成 6 类 F1AP/E1AP 控制消息结构化关键 IE mutation、强类型 ASN.1 重新编码、L1/L2 和 Stage 4 normalized round-trip。
 - [x] 完成 XnAP Handover Request/Acknowledge 离线 ASN.1 构造、解析和 Wireshark 识别。
-- [x] 完成 6 类 F1AP/E1AP 真实对端 L3/L4、动态 GTP-U live replay 和 NGAP/Open5GS 测试入口。
-- [x] 完成 5C.5 两条 UE flow 独立一条命令最终验收；两次结束后 baseline 健康。
-- [ ] 增加 mutation、Open5GS issue reproduction 和 dashboard。
+- [x] 使用隔离协议感知 SCTP 测试端完成 6 个生成 testcase；5 个达到真实对端 L3，F1AP/E1AP 各至少一个达到 L4。
+- [x] 完成动态 GTP-U 生成 testcase live replay。
+- [x] 完成可接受显式 testcase/mutation 的 NGAP/Open5GS 入口；普通 UERANSIM smoke 单独分类。
+- [x] 两条正常 UE flow 可独立一条命令运行并证明状态机推进；强制失败与恢复失败语义均已验收。
+- [ ] 增加 Open5GS issue reproduction 和 dashboard。
 
 阶段 5C.1/MVP 报告：`reports/testcase_reports/stage5c1-replay-mvp-report.md`
 

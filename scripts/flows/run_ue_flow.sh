@@ -105,32 +105,51 @@ collect_logs() {
 
 stop_capture_if_active() {
   if (( CAPTURE_ACTIVE == 1 )); then
-    "$PROJECT_ROOT/scripts/capture/capture_traffic.sh" stop >/dev/null 2>&1 || true
+    "$PROJECT_ROOT/scripts/capture/capture_traffic.sh" stop >/dev/null
     CAPTURE_ACTIVE=0
   fi
 }
 
-cleanup() {
-  stop_capture_if_active
-  if (( RESTORE_BASELINE == 1 )); then
-    "$PROJECT_ROOT/scripts/env/run_srsue_zmq_smoke.sh" down >/dev/null 2>&1 || true
-    docker compose -f "$COMPOSE_MAIN" -f "$COMPOSE_SPLIT" \
-      up -d --force-recreate cu-cp cu-up du >/dev/null 2>&1 || true
-    for _ in $(seq 1 60); do
-      if "$PROJECT_ROOT/scripts/env/check_core_ready.sh" >/dev/null 2>&1; then
-        break
-      fi
-      sleep 2
-    done
-    RESTORE_BASELINE=0
+on_exit() {
+  local test_status="$1"
+  local cleanup_status=0
+  trap - EXIT
+  set +e
+
+  if (( CAPTURE_ACTIVE == 1 )); then
+    stop_capture_if_active
+    cleanup_status=$?
+    if (( cleanup_status != 0 )); then
+      echo "ERROR: failed to stop/copy the active capture." >&2
+    fi
   fi
+
+  if (( RESTORE_BASELINE == 1 )); then
+    "$PROJECT_ROOT/scripts/env/restore_baseline.sh"
+    local restore_status=$?
+    if (( restore_status != 0 )); then
+      echo "ERROR: baseline restoration failed with status ${restore_status}." >&2
+      cleanup_status=$restore_status
+    else
+      RESTORE_BASELINE=0
+    fi
+  fi
+
+  if (( test_status != 0 )); then
+    echo "Flow failed with status ${test_status}; baseline restore status=${cleanup_status}." >&2
+    exit "$test_status"
+  fi
+  if (( cleanup_status != 0 )); then
+    exit "$cleanup_status"
+  fi
+  exit 0
 }
-trap cleanup EXIT
+trap 'on_exit $?' EXIT
 
 prepare_flow_evidence_environment() {
+  RESTORE_BASELINE=1
   docker compose -f "$COMPOSE_MAIN" -f "$COMPOSE_SPLIT" -f "$COMPOSE_EVIDENCE" \
     up -d --force-recreate cu-cp cu-up du >/dev/null
-  RESTORE_BASELINE=1
 
   for _ in $(seq 1 90); do
     if "$PROJECT_ROOT/scripts/env/check_core_ready.sh" >/dev/null 2>&1; then
@@ -162,6 +181,10 @@ cd "$PROJECT_ROOT"
 mkdir -p "$CAPTURE_DIR" "$RESULT_DIR" "$NORMALIZED_DIR" "$TEMPLATE_DIR" "$LOG_DIR"
 ./scripts/env/check_core_ready.sh
 prepare_flow_evidence_environment
+if [[ "${FLOW_TEST_FAIL_AFTER_PREP:-0}" == "1" ]]; then
+  echo "TEST-ONLY: forcing flow failure after evidence environment preparation." >&2
+  exit 96
+fi
 snapshot_log_offsets
 ./scripts/capture/capture_traffic.sh start "$CAPTURE_DIR"
 CAPTURE_ACTIVE=1
