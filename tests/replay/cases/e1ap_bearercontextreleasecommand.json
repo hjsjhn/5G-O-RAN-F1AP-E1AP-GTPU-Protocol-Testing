@@ -4,10 +4,12 @@
   "description": "Reconstruct captured E1AP BearerContextReleaseCommand as SCTP DATA",
   "protocol": "E1AP",
   "template": "tests/replay/templates/stage5c2/control/e1ap_bearercontextreleasecommand.json",
+  "structured_ies": {"GNB_CU_CP_UE_E1AP_ID": 0},
+  "mutation": {"field": "GNB_CU_CP_UE_E1AP_ID", "value": 203},
   "expect": {
     "display_filter": "e1ap && e1ap.BearerContextReleaseCommand_element",
     "packet_count": 1,
-    "fields": {"e1ap.procedureCode": "11", "sctp.data_payload_proto_id": "64"},
-    "normalized": {"protocol": "E1AP", "procedure_code": 11, "procedure_name": "BearerContextReleaseCommand"}
+    "fields": {"e1ap.procedureCode": "11", "e1ap.GNB_CU_CP_UE_E1AP_ID": "203", "sctp.data_payload_proto_id": "64"},
+    "normalized": {"protocol": "E1AP", "procedure_code": 11, "procedure_name": "BearerContextReleaseCommand", "ies": {"GNB_CU_CP_UE_E1AP_ID": "203"}}
   }
 }

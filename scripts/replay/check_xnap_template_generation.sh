@@ -6,12 +6,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SOURCE_DIR="$PROJECT_ROOT/docker/srsran-src"
 BUILD_DIR="${XNAP_BUILD_DIR:-${TMPDIR:-/tmp}/srsran-xnap-template-build}"
-BUILDER_IMAGE="${XNAP_BUILDER_IMAGE:-pavonis/srs-gnb-dev:latest}"
+EXPECTED_SRSRAN_COMMIT="4bf1543936d062686d64c10724d2f27a9854f065"
+BUILDER_IMAGE="${XNAP_BUILDER_IMAGE:-pavonis/srs-gnb-dev@sha256:820ba5ed9056ba8f913ef6b749bf24cd72127ceadf040d60fbc56193368bb344}"
 BUILDER_PLATFORM="${XNAP_BUILDER_PLATFORM:-linux/amd64}"
 
-if [[ ! -f "$SOURCE_DIR/include/srsran/asn1/xnap/xnap.h" ]]; then
+if [[ ! -d "$SOURCE_DIR/.git" || ! -f "$SOURCE_DIR/include/srsran/asn1/xnap/xnap.h" ]]; then
   echo "Missing local srsRAN source at $SOURCE_DIR" >&2
   exit 2
+fi
+actual_commit="$(git -C "$SOURCE_DIR" rev-parse HEAD)"
+if [[ "$actual_commit" != "$EXPECTED_SRSRAN_COMMIT" ]]; then
+  echo "srsRAN source commit mismatch: expected $EXPECTED_SRSRAN_COMMIT, got $actual_commit" >&2
+  exit 3
 fi
 
 mkdir -p "$BUILD_DIR"

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -53,12 +54,59 @@ def resolve_template(case: dict, case_path: Path | None = None) -> tuple[Path, d
     return template_path, load_json(template_path)
 
 
-def build_sctp_data(template: dict) -> bytes:
+def generate_control_payload(case: dict, template: dict) -> tuple[bytes, dict | None]:
+    source = bytes.fromhex(template["payload"]["hex"])
+    mutation = case.get("mutation")
+    if mutation is None:
+        return source, None
+    if case["protocol"] not in {"F1AP", "E1AP"}:
+        raise ValueError(f"{case['protocol']}: structured APER mutation is not supported")
+
+    field = mutation["field"]
+    value = mutation["value"]
+    structured_ies = case.get("structured_ies", {})
+    if field not in structured_ies:
+        raise ValueError(f"mutation field {field} is missing from structured_ies")
+    completed = subprocess.run(
+        [
+            str(Path(__file__).with_name("run_control_aper_mutator.sh")),
+            case["protocol"],
+            template["message"],
+            source.hex(),
+            field,
+            str(value),
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    json_lines = [line for line in completed.stdout.splitlines() if line.startswith("{")]
+    if not json_lines:
+        raise ValueError("APER mutator did not return structured output")
+    metadata = json.loads(json_lines[-1])
+    if metadata["before"] != structured_ies[field]:
+        raise ValueError(
+            f"{field}: structured source value {structured_ies[field]} does not match "
+            f"decoded APER value {metadata['before']}"
+        )
+    if metadata["after"] != value:
+        raise ValueError(f"{field}: APER mutation did not produce requested value {value}")
+    payload = bytes.fromhex(metadata["payload_hex"])
+    if payload == source:
+        raise ValueError(f"{field}: APER payload did not change after mutation")
+    return payload, metadata
+
+
+def build_sctp_data(template: dict, payload: bytes | None = None) -> bytes:
     transport = template["transport"]
-    payload = bytes.fromhex(template["payload"]["hex"])
+    source_payload = bytes.fromhex(template["payload"]["hex"])
     expected_length = parse_int(template["payload"]["length"], "payload.length", 0xFFFF_FFFF)
-    if len(payload) != expected_length:
-        raise ValueError(f"payload length mismatch: JSON={expected_length}, hex={len(payload)}")
+    if len(source_payload) != expected_length:
+        raise ValueError(
+            f"payload length mismatch: JSON={expected_length}, hex={len(source_payload)}"
+        )
+    if payload is None:
+        payload = source_payload
 
     tsn = parse_int(transport.get("tsn", 0), "transport.tsn", 0xFFFF_FFFF)
     stream_id = parse_int(transport.get("stream_id", 0), "transport.stream_id", 0xFFFF)
@@ -73,11 +121,15 @@ def build_sctp_data(template: dict) -> bytes:
     return chunk
 
 
-def encode_packet(case: dict, case_path: Path | None = None) -> bytes:
+def encode_packet(
+    case: dict, case_path: Path | None = None, payload: bytes | None = None
+) -> bytes:
     _, template = resolve_template(case, case_path)
     direction = template["direction"]
     transport = template["transport"]
-    chunk = build_sctp_data(template)
+    if payload is None:
+        payload, _ = generate_control_payload(case, template)
+    chunk = build_sctp_data(template, payload)
 
     src_port = parse_int(transport["src_port"], "transport.src_port", 0xFFFF)
     dst_port = parse_int(transport["dst_port"], "transport.dst_port", 0xFFFF)
@@ -125,10 +177,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     case = load_case(args.case)
-    packet = encode_packet(case, args.case)
     _, template = resolve_template(case, args.case)
-    if extract_sctp_data_payload(packet).hex() != template["payload"]["hex"].lower():
-        raise ValueError("encoded SCTP payload is not reversible to the source template")
+    payload, _ = generate_control_payload(case, template)
+    packet = encode_packet(case, args.case, payload)
+    if extract_sctp_data_payload(packet) != payload:
+        raise ValueError("encoded SCTP payload is not reversible to the generated APER payload")
     write_pcap(args.output, [packet])
     print(args.output)
     return 0

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ from encode_gtpu import write_pcap
 from encode_sctp_template import (
     encode_packet as encode_sctp_packet,
     extract_sctp_data_payload,
+    generate_control_payload,
     load_case as load_sctp_case,
     resolve_template,
 )
@@ -91,11 +93,14 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
         case = load_gtpu_case(case_path)
         packet = encode_gtpu_packet(case)
         source_payload = None
+        generated_payload = None
+        mutation = None
     else:
         case = load_sctp_case(case_path)
-        packet = encode_sctp_packet(case, case_path)
         _, template = resolve_template(case, case_path)
-        source_payload = template["payload"]["hex"].lower()
+        source_payload = bytes.fromhex(template["payload"]["hex"])
+        generated_payload, mutation = generate_control_payload(case, template)
+        packet = encode_sctp_packet(case, case_path, generated_payload)
     case_id = case["id"]
     pcap_path = pcap_dir / f"{case_id}.pcap"
     write_pcap(pcap_path, [packet])
@@ -140,15 +145,39 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
 
     normalized = None
     if source_payload is not None:
-        round_trip = extract_sctp_data_payload(packet).hex()
+        round_trip = extract_sctp_data_payload(packet)
         checks.append(
             {
-                "name": "aper_payload_round_trip",
-                "expected": source_payload,
-                "actual": round_trip,
-                "passed": round_trip == source_payload,
+                "name": "generated_aper_payload_round_trip",
+                "expected": generated_payload.hex(),
+                "actual": round_trip.hex(),
+                "passed": round_trip == generated_payload,
             }
         )
+        if mutation is not None:
+            checks.extend(
+                [
+                    {
+                        "name": "structured_source_ie_matches_decoded_template",
+                        "expected": case["structured_ies"][mutation["field"]],
+                        "actual": mutation["before"],
+                        "passed": mutation["before"]
+                        == case["structured_ies"][mutation["field"]],
+                    },
+                    {
+                        "name": "structured_mutation_applied",
+                        "expected": case["mutation"]["value"],
+                        "actual": mutation["after"],
+                        "passed": mutation["after"] == case["mutation"]["value"],
+                    },
+                    {
+                        "name": "mutation_changes_aper_payload",
+                        "expected": True,
+                        "actual": source_payload != generated_payload,
+                        "passed": source_payload != generated_payload,
+                    },
+                ]
+            )
     normalized_expect = expect.get("normalized", {})
     if normalized_expect:
         normalized = stage4_normalized_record(pcap_path, case_id, case["protocol"])
@@ -167,8 +196,21 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
                 "protocol": normalized.get("protocol"),
                 "procedure_code": normalized.get("procedure", {}).get("code"),
                 "procedure_name": normalized.get("procedure", {}).get("name"),
+                "ies": normalized.get("ies", {}),
             }
         for name, expected in normalized_expect.items():
+            if name == "ies":
+                for ie_name, ie_expected in expected.items():
+                    actual = actual_normalized["ies"].get(ie_name)
+                    checks.append(
+                        {
+                            "name": f"stage4_normalized.ies.{ie_name}",
+                            "expected": ie_expected,
+                            "actual": actual,
+                            "passed": actual == ie_expected,
+                        }
+                    )
+                continue
             actual = actual_normalized.get(name)
             checks.append(
                 {
@@ -179,6 +221,14 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
                 }
             )
 
+    payload_evidence = None
+    if source_payload is not None:
+        payload_evidence = {
+            "source_sha256": hashlib.sha256(source_payload).hexdigest(),
+            "generated_sha256": hashlib.sha256(generated_payload).hexdigest(),
+            "changed": source_payload != generated_payload,
+            "mutation": mutation,
+        }
     return {
         "id": case_id,
         "description": case.get("description", ""),
@@ -187,6 +237,7 @@ def validate_case(case_path: Path, pcap_dir: Path) -> dict:
         "generated_pcap": str(pcap_path),
         "display_filter": display_filter,
         "stage4_normalized": normalized,
+        "payload_evidence": payload_evidence,
         "passed": all(check["passed"] for check in checks),
         "checks": checks,
     }

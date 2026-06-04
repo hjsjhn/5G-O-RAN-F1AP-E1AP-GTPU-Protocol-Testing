@@ -4,10 +4,12 @@
   "description": "Reconstruct captured E1AP BearerContextModificationRequest as SCTP DATA",
   "protocol": "E1AP",
   "template": "tests/replay/templates/stage5c2/control/e1ap_bearercontextmodificationrequest.json",
+  "structured_ies": {"GNB_CU_CP_UE_E1AP_ID": 0},
+  "mutation": {"field": "GNB_CU_CP_UE_E1AP_ID", "value": 202},
   "expect": {
     "display_filter": "e1ap && e1ap.BearerContextModificationRequest_element",
     "packet_count": 1,
-    "fields": {"e1ap.procedureCode": "9", "sctp.data_payload_proto_id": "64"},
-    "normalized": {"protocol": "E1AP", "procedure_code": 9, "procedure_name": "BearerContextModificationRequest"}
+    "fields": {"e1ap.procedureCode": "9", "e1ap.GNB_CU_CP_UE_E1AP_ID": "202", "sctp.data_payload_proto_id": "64"},
+    "normalized": {"protocol": "E1AP", "procedure_code": 9, "procedure_name": "BearerContextModificationRequest", "ies": {"GNB_CU_CP_UE_E1AP_ID": "202"}}
   }
 }

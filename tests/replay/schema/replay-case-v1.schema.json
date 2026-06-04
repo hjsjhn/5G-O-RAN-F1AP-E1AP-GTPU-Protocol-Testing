@@ -61,6 +61,16 @@
             },
             "inner_dst": {
               "type": "string"
+            },
+            "ies": {
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "integer",
+                  "boolean"
+                ]
+              },
+              "type": "object"
             }
           },
           "required": [
@@ -79,6 +89,24 @@
     "id": {
       "pattern": "^[a-z0-9_]+$",
       "type": "string"
+    },
+    "mutation": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "field",
+        "value"
+      ],
+      "type": "object"
     },
     "packet": {
       "additionalProperties": false,
@@ -123,6 +151,17 @@
     },
     "schema_version": {
       "const": 1
+    },
+    "structured_ies": {
+      "additionalProperties": {
+        "type": [
+          "string",
+          "integer",
+          "boolean"
+        ]
+      },
+      "minProperties": 1,
+      "type": "object"
     },
     "template": {
       "minLength": 1,
