@@ -1,6 +1,6 @@
 # 实施进度
 
-> 最后更新：2026-06-04
+> 最后更新：2026-06-05
 
 ## 总览
 
@@ -15,7 +15,7 @@
 | 4.5. 可复现性与并行计划调整 | ✅ 完成 | 固定 Open5GS digest，重定义 XnAP，拆分 F1/N2/replay 三条线 |
 | 5A. F1 Handover 实验线 | ⬜ 待开始 | 同 CU-CP 下双 cell / F1 handover 抓包和解析 |
 | 5B. N2 Handover 实验线 | ⬜ 待开始 | 两套 gNB/CU-DU 接同一 Open5GS，尝试 AMF-mediated handover |
-| 5C. 编码/回放/自动测例主线 | 🔄 进行中 | 5C.2–5C.5 已验收；Open5GS issue reproduction 与 dashboard 待完成 |
+| 5C. 编码/回放/自动测例主线 | ✅ 基本要求完成 | 5C.2–5C.5 已验收；Open5GS issue reproduction 与 dashboard 作为后续展示增强 |
 | 6. 前端展示与最终报告 | ⬜ 待开始 | dashboard + 最终演示脚本 |
 
 ## 阶段 0：仓库和文档结构 ✅
@@ -529,7 +529,7 @@ docker/compose/docker-compose.n2-ho.yml
 - N2/NGAP 抓包和解析报告。
 - 支持边界报告。
 
-## 阶段 5C：编码/回放/自动测例主线 🔄
+## 阶段 5C：编码/回放/自动测例主线 ✅ 基本要求完成
 
 目标：
 
@@ -559,7 +559,62 @@ XnAP 范围：
 - [x] 完成动态 GTP-U 生成 testcase live replay。
 - [x] 完成可接受显式 testcase/mutation 的 NGAP/Open5GS 入口；普通 UERANSIM smoke 单独分类。
 - [x] 两条正常 UE flow 可独立一条命令运行并证明状态机推进；强制失败与恢复失败语义均已验收。
-- [ ] 增加 Open5GS issue reproduction 和 dashboard。
+- [x] 完成 Stage 5C.6 P0 Open5GS issue reproduction：`#4263` / PR `#4333` NRF `requester-features` overflow testcase、live 验收、结构化结果和报告。
+- [x] 完成 Stage 5C.6 P0b Open5GS issue reproduction：`#4532` SMF empty SUPI SM Context Create testcase、live 验收、结构化结果和报告。
+- [x] 完成 Stage 5C.6 P1 AMF race 边界测试：`#4209` / PR `#4289` deregistration/re-registration testcase 已自动化，当前 UERANSIM 时序下分类为 `NOT_REPRODUCED`。
+- [x] 完成 Stage 5C.6 P2 PFCP robustness 测试：`#4327` Create FAR testcase 已自动化，当前分类为 `PFCP_ERROR_NO_IMPACT`。
+- [ ] 增加 dashboard。
+
+### 5C 验收摘要（2026-06-05）
+
+阶段 5C 当前已经覆盖课程 project 的三项基本交付：协议解析、JSON/ASN.1/pcap 可逆编码验证、两条完整 UE flow 自动化测试。与此同时，Stage 5C.6 Open5GS issue-driven testcase 已完成四类结果：`#4263` / PR `#4333` 在当前固定 digest 上实际复现为 `VULNERABLE_CRASH`；`#4532` SMF empty SUPI 在当前固定 digest 上实际复现为 `VULNERABLE_CRASH`；`#4289` AMF race 基础时序未复现，分类为 `NOT_REPRODUCED`；`#4327` PFCP Create FAR 命中 UPF 错误路径，分类为 `PFCP_ERROR_NO_IMPACT`。当前仍待补的是 dashboard，而不是 issue reproduction 的 P0 能力。
+
+| 课程要求 | 当前完成情况 | 证据 |
+|----------|--------------|------|
+| E1AP/F1AP/XnAP/GTP-U 解析到结构化 JSON | F1AP/NGAP/E1AP/GTP-U 已基于真实 baseline capture 解析；XnAP 按调整后的范围做离线 Handover Request/Acknowledge 构造和识别 | `reports/testcase_reports/stage4-parse-report.md`、`reports/testcase_reports/stage5c3-offline-encoding-report.md` |
+| 至少 5 类控制面消息从 JSON 重新编码并可被识别 | 6 类 F1AP/E1AP UE/Bearer 控制消息完成结构化 mutation、APER 重新编码、pcap/tshark 识别和 normalized round-trip；另有 6 个 F1AP/E1AP 管理消息 testcase 使用 JSON 直接驱动 live peer validation | `reports/testcase_reports/stage5c3-offline-encoding-report.md`、`reports/testcase_reports/stage5c4-peer-validation-report.md` |
+| GTP-U packet 从 JSON/template 生成 pcap 并验证 | N3/F1-U GTP-U testcase 支持动态 TEID/endpoint，生成 pcap 可被 tshark/Wireshark 识别，并完成 live replay 验收 | `reports/testcase_reports/stage5c1-replay-mvp-report.md`、`json/replay_results/stage5c4/control_peer_validation.json` |
+| 两条完整 UE flow 自动化测试 | 注册 + PDU Session、注册 + inactivity-triggered Release 两条 flow 可独立运行，能证明 UE、CU/DU、Open5GS 状态机推进 | `reports/testcase_reports/stage5c5-complete-flow-report.md` |
+| NG-related cross-layer interaction | NGAP baseline timeline 已解析；NGAP/Open5GS 入口支持显式 testcase/mutation，普通 UERANSIM smoke 与 replay testcase 分开记录，避免把正常 UE flow 误算为 NGAP replay | `docs/replay-execution-plan.md`、`reports/testcase_reports/stage5c4-peer-validation-report.md` |
+
+### 本次任务实际补上的内容
+
+- 把 F1AP/E1AP live peer validation 改成 JSON 驱动：`tests/replay/live_cases/control/*.json` 定义 testcase，C++ generator 只负责按 JSON 生成 APER payload。
+- 修复“JSON pcap 验证”和“live 发送 payload”脱节的问题：现在同一个 APER payload 同时进入 pcap/tshark 和 SCTP endpoint，并校验 JSON 生成 hash、pcap 读回 hash、实际发送 hash 三者一致。
+- 把 `protocol_peer_endpoint.cpp` 改为只发送外部传入 payload，不再在 endpoint 里现场构造消息，保证别人复现时输入、生成、发送是同一条链路。
+- 强化真实对端验收：6 个管理消息 testcase 中 5 个达到 CU-CP 真实对端 L3；F1AP/E1AP 各至少 1 个达到严格 L4，即 response procedure/outcome/message type/transaction ID 均匹配。
+- 明确 NGAP/Open5GS 边界：当前不是伪造 NGAP replay，而是提供显式 testcase/mutation 入口；普通 UERANSIM smoke 只作为正常流程证明。
+- 加强自动恢复和复现：live validation 结束后恢复 baseline，并用 `check_core_ready.sh` 验证环境回到可用状态。
+- 新增 Stage 5C.6 issue-driven runner：默认 dry-run，只有 `--live` 才从 Docker 5GC 网络内按 testcase 向目标 NF 发送 SBI/PFCP/时序输入；执行后记录请求状态、目标容器状态、restart count、目标组件新增日志摘要，并分类为 `VULNERABLE_CRASH` / `SAFE_REJECT` / `NOT_REPRODUCED` / `INFRA_FAIL`。
+- `#4263` / PR `#4333` 实测结果：当前 `ghcr.io/herlesupreeth/docker_open5gs@sha256:68247a557ae8e2a46beca39bceb06d63d0c3daebb9f6b95312be9384461154c1`（`Open5GS v2.7.6-131-g782a97e`）在 `requester-features=ffffffffffffffffffffffffffffffffffffffff` 下会触发 `FATAL: ... Numerical result out of range`，`nrf` 容器由 `running` 变为 `exited`，分类为 `VULNERABLE_CRASH`；自动恢复后 `check_core_ready.sh` 重新通过。
+- `#4532` 实测结果：同一固定 digest 在 `POST /nsmf-pdusession/v1/sm-contexts` 且 `supi=""` 下会触发 `FATAL: ogs_hash_get_debug: Assertion \`klen\` failed`，`smf` 容器由 `running` 变为 `exited`，退出码 `134`，分类为 `VULNERABLE_CRASH`；自动恢复后 `check_core_ready.sh` 重新通过。
+- `#4209` / PR `#4289` 已实现 UERANSIM `deregister normal` + 自动 re-registration 时序测试；3 轮均观察到 `Deregistration request`、`InitialUEMessage`、`Registration complete`，AMF 未 crash，分类为 `NOT_REPRODUCED`。该结果只作为边界测试，不声明漏洞复现。
+- `#4327` 已实现 PFCP Session Modification `Create FAR` mutation：runner 先建立 PDU Session，提取 UPF F-SEID，再从 `smf` 容器内发送 `SMF:8805 -> UPF:8805` 的 PFCP 包，命中 `Cannot find FAR-ID[7777] in PDR`；UPF 未 crash，restart count 不变，baseline 恢复成功，分类为 `PFCP_ERROR_NO_IMPACT`。
+
+### 5C 已验收命令
+
+```bash
+./scripts/replay/prepare_replay_dependencies.sh --check
+./scripts/replay/run_replay_tests.sh
+./scripts/replay/check_xnap_template_generation.sh
+python3 scripts/replay/run_control_peer_validation.py --live
+./scripts/replay/run_live_peer_validation.sh --live
+./scripts/flows/run_ue_flow.sh registration_pdu_session
+./scripts/flows/run_ue_flow.sh registration_release
+python3 scripts/replay/run_open5gs_issue_tests.py --case tests/replay/open5gs_issues/nrf_requester_features_overflow.json --output json/replay_results/stage5c6/open5gs_issue_results.json
+python3 scripts/replay/run_open5gs_issue_tests.py --live --case tests/replay/open5gs_issues/nrf_requester_features_overflow.json --output json/replay_results/stage5c6/open5gs_issue_results.json
+python3 scripts/replay/run_open5gs_issue_tests.py --live --case tests/replay/open5gs_issues/smf_empty_supi_sm_context_create.json --output json/replay_results/stage5c6/open5gs_issue_4532_result.json
+python3 scripts/replay/run_open5gs_issue_tests.py --live --case tests/replay/open5gs_issues/amf_dereg_rereg_late_sdm_delete.json --output json/replay_results/stage5c6/open5gs_issue_4289_result.json
+python3 scripts/replay/run_open5gs_issue_tests.py --live --case tests/replay/open5gs_issues/upf_pfcp_create_far_without_pdr_reference.json --output json/replay_results/stage5c6/open5gs_issue_4327_result.json
+./scripts/env/check_core_ready.sh
+```
+
+### 汇报时需要如实说明的边界
+
+- XnAP 当前是离线解析/构造，不是 live XnAP handover 或 live replay。
+- Open5GS issue-driven 测试当前完成两个稳定 crash：`#4263` / PR `#4333` 的 NRF SBI overflow crash 和 `#4532` 的 SMF empty SUPI crash；P1：`#4209` / PR `#4289` 的 AMF race 边界测试已自动化但未复现；P2：`#4327` 的 PFCP Create FAR 错误路径已命中但无崩溃或服务影响。Regression 候选不作为当前展示重点。
+- 没有完成真实手机接入，Bonus 1 不应声明完成。
+- Dashboard 和最终演示页面还没开始，属于阶段 6。
 
 阶段 5C.1/MVP 报告：`reports/testcase_reports/stage5c1-replay-mvp-report.md`
 
@@ -570,6 +625,8 @@ XnAP 范围：
 阶段 5C.4 报告：`reports/testcase_reports/stage5c4-peer-validation-report.md`
 
 阶段 5C.5 报告：`reports/testcase_reports/stage5c5-complete-flow-report.md`
+
+阶段 5C.6 报告：`reports/testcase_reports/stage5c6-open5gs-issue-report.md`
 
 Stage 5C 完整执行计划：`docs/replay-execution-plan.md`
 

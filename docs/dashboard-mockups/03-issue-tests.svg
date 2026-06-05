@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <style>
+      .bg { fill: #f6f7f9; }
+      .panel { fill: #ffffff; stroke: #d7dce3; stroke-width: 1; }
+      .header { fill: #20242a; }
+      .text { font-family: Inter, Arial, sans-serif; fill: #20242a; }
+      .title { font-size: 34px; font-weight: 700; }
+      .h2 { font-size: 26px; font-weight: 700; }
+      .body { font-size: 22px; }
+      .small { font-size: 18px; }
+      .mono { font-family: Menlo, Consolas, monospace; font-size: 17px; }
+      .muted { fill: #68707d; }
+      .ok { fill: #178a55; }
+      .danger { fill: #b42318; }
+      .warn { fill: #b36b00; }
+      .chip-red { fill: #fff1f0; stroke: #ffb4ab; }
+      .chip-green { fill: #ecfdf3; stroke: #b7e5c8; }
+      .chip-yellow { fill: #fff7ed; stroke: #ffd6a8; }
+      .code { fill: #111827; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1440" height="900"/>
+  <rect class="header" width="1440" height="76"/>
+  <text class="text title" x="34" y="50" fill="#fff">Open5GS Issue-Driven Security Tests</text>
+  <text class="text small" x="1040" y="48" fill="#d8dee9">live mutation · crash evidence · restore</text>
+
+  <rect class="panel" x="24" y="104" width="392" height="760" rx="8"/>
+  <text class="text h2" x="50" y="146">测试用例</text>
+  <rect class="chip-red" x="50" y="180" width="330" height="86" rx="8"/>
+  <text class="text body danger" x="70" y="214">#4532 SMF empty SUPI</text>
+  <text class="text small muted" x="70" y="244">VULNERABLE_CRASH · exit 134</text>
+  <rect class="chip-red" x="50" y="286" width="330" height="86" rx="8"/>
+  <text class="text body danger" x="70" y="320">#4333 NRF requester-features</text>
+  <text class="text small muted" x="70" y="350">VULNERABLE_CRASH · overflow</text>
+  <rect class="chip-yellow" x="50" y="392" width="330" height="86" rx="8"/>
+  <text class="text body warn" x="70" y="426">#4327 PFCP Create FAR</text>
+  <text class="text small muted" x="70" y="456">PFCP_ERROR_NO_IMPACT</text>
+  <rect class="panel" x="50" y="498" width="330" height="86" rx="8"/>
+  <text class="text body" x="70" y="532">#4289 AMF race</text>
+  <text class="text small muted" x="70" y="562">NOT_REPRODUCED</text>
+
+  <rect class="panel" x="440" y="104" width="562" height="354" rx="8"/>
+  <text class="text h2" x="468" y="146">输入 Mutation</text>
+  <rect class="code" x="468" y="176" width="504" height="238" rx="7"/>
+  <text class="text mono" x="490" y="214" fill="#e5e7eb">POST /nsmf-pdusession/v1/sm-contexts</text>
+  <text class="text mono" x="490" y="250" fill="#e5e7eb">{</text>
+  <text class="text mono" x="516" y="286" fill="#93c5fd">"supi"</text>
+  <text class="text mono" x="610" y="286" fill="#fca5a5">: ""</text>
+  <text class="text mono" x="516" y="322" fill="#93c5fd">"pduSessionId"</text>
+  <text class="text mono" x="690" y="322" fill="#e5e7eb">: 1,</text>
+  <text class="text mono" x="516" y="358" fill="#93c5fd">"ratType"</text>
+  <text class="text mono" x="622" y="358" fill="#e5e7eb">: "NR"</text>
+  <text class="text mono" x="490" y="394" fill="#e5e7eb">}</text>
+
+  <rect class="panel" x="440" y="486" width="562" height="378" rx="8"/>
+  <text class="text h2" x="468" y="528">结果证据</text>
+  <text class="text body" x="468" y="580">curl</text>
+  <text class="text mono danger" x="560" y="580">exit 56 · Connection reset by peer</text>
+  <text class="text body" x="468" y="626">SMF</text>
+  <text class="text mono danger" x="560" y="626">running -> exited · exit_code=134</text>
+  <text class="text body" x="468" y="672">fatal</text>
+  <text class="text mono danger" x="560" y="672">ogs_hash_get_debug: Assertion `klen` failed</text>
+  <text class="text body" x="468" y="718">restore</text>
+  <text class="text mono ok" x="560" y="718">baseline_restore.restored=true</text>
+  <rect class="chip-green" x="468" y="770" width="384" height="52" rx="7"/>
+  <text class="text body ok" x="490" y="804">恢复后 check_core_ready: OK</text>
+
+  <rect class="panel" x="1028" y="104" width="388" height="760" rx="8"/>
+  <text class="text h2" x="1054" y="146">验收解释</text>
+  <text class="text body" x="1054" y="206">安全分析</text>
+  <text class="text small muted" x="1054" y="236">根据 Open5GS issue 构造输入</text>
+  <text class="text body" x="1054" y="302">包修改 / 回放</text>
+  <text class="text small muted" x="1054" y="332">JSON testcase -> live HTTP/2 SBI</text>
+  <text class="text body" x="1054" y="398">结果可复现</text>
+  <text class="text small muted" x="1054" y="428">容器状态、日志、恢复状态结构化保存</text>
+  <text class="text body" x="1054" y="494">展示方式</text>
+  <text class="text small muted" x="1054" y="524">点 Run 显示右侧实时日志和最终分类</text>
+  <rect class="chip-red" x="1054" y="616" width="280" height="52" rx="7"/>
+  <text class="text body danger" x="1076" y="650">VULNERABLE_CRASH</text>
+  <rect class="chip-green" x="1054" y="690" width="280" height="52" rx="7"/>
+  <text class="text body ok" x="1076" y="724">AUTO RESTORED</text>
+</svg>

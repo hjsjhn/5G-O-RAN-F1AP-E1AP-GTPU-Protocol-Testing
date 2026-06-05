@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "open5gs_4327_upf_pfcp_create_far_without_pdr_reference",
+  "title": "UPF PFCP Session Modification Create FAR without PDR pre-reference",
+  "component": "upf",
+  "protocol": "PFCP",
+  "issue": "https://github.com/open5gs/open5gs/pull/4327",
+  "fix": "https://github.com/open5gs/open5gs/pull/4327",
+  "transport": {
+    "kind": "pfcp_udp",
+    "sender_container": "smf",
+    "source_port": 8805,
+    "target_host": "upf",
+    "target_port": 8805
+  },
+  "target": {
+    "container": "upf"
+  },
+  "sequence": {
+    "setup": "ueransim_pdu_session",
+    "session_log_component": "upf",
+    "response_timeout_seconds": 5
+  },
+  "mutation": {
+    "pfcp_message": "SessionModificationRequest",
+    "group_ie": "CreateFAR",
+    "far_id": 7777,
+    "apply_action": 2
+  },
+  "detection": {
+    "fatal_keywords": [
+      "FATAL",
+      "abort",
+      "assert",
+      "SIGABRT"
+    ],
+    "pfcp_error_keywords": [
+      "Cannot find FAR-ID",
+      "Cannot find PFCP-Node",
+      "MANDATORY_IE_INCORRECT",
+      "Session Modification",
+      "Offending IE"
+    ],
+    "required_observations": [
+      "UE F-SEID",
+      "PFCP associated"
+    ]
+  },
+  "expect": {
+    "pre_fix_or_affected": [
+      "pfcp_error",
+      "create_far_rejected"
+    ],
+    "fixed_or_compatible": [
+      "session_modification_accepted",
+      "upf_alive"
+    ]
+  }
+}

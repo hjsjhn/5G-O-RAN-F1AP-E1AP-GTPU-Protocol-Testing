@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <style>
+      .bg { fill: #f6f7f9; }
+      .panel { fill: #ffffff; stroke: #d7dce3; stroke-width: 1; }
+      .header { fill: #20242a; }
+      .text { font-family: Inter, Arial, sans-serif; fill: #20242a; }
+      .muted { fill: #68707d; }
+      .small { font-size: 18px; }
+      .body { font-size: 22px; }
+      .title { font-size: 34px; font-weight: 700; }
+      .h2 { font-size: 26px; font-weight: 700; }
+      .mono { font-family: Menlo, Consolas, monospace; font-size: 18px; }
+      .ok { fill: #178a55; }
+      .warn { fill: #b36b00; }
+      .danger { fill: #b42318; }
+      .blue { fill: #2463eb; }
+      .line { stroke: #67758a; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .chip { fill: #edf2ff; stroke: #bfd0ff; }
+      .chip2 { fill: #ecfdf3; stroke: #b7e5c8; }
+      .chip3 { fill: #fff7ed; stroke: #ffd6a8; }
+      .node { fill: #ffffff; stroke: #aab4c3; stroke-width: 2; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67758a"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1440" height="900"/>
+  <rect class="header" width="1440" height="76"/>
+  <text class="text title" x="34" y="50" fill="#fff">5G O-RAN Test Console</text>
+  <text class="text small" x="1030" y="48" fill="#d8dee9">baseline healthy · Open5GS v2.7.6-131-g782a97e</text>
+
+  <rect class="panel" x="24" y="100" width="270" height="780" rx="8"/>
+  <text class="text h2" x="46" y="142">导航</text>
+  <rect class="chip" x="44" y="170" width="210" height="44" rx="7"/>
+  <text class="text body blue" x="62" y="199">系统总览</text>
+  <text class="text body" x="62" y="256">协议解析</text>
+  <text class="text body" x="62" y="312">编码回放</text>
+  <text class="text body" x="62" y="368">UE Flow</text>
+  <text class="text body" x="62" y="424">安全测试</text>
+  <text class="text body" x="62" y="480">报告导出</text>
+
+  <rect class="panel" x="318" y="100" width="884" height="545" rx="8"/>
+  <text class="text h2" x="350" y="142">实验环境拓扑</text>
+  <text class="text small muted" x="350" y="174">一眼展示 Open5GS、srsRAN CU/DU split、UE 和主要接口是否可运行</text>
+
+  <rect class="node" x="396" y="250" width="150" height="72" rx="8"/>
+  <text class="text body" x="433" y="292">srsUE</text>
+  <circle class="ok" cx="526" cy="268" r="7"/>
+
+  <rect class="node" x="650" y="190" width="150" height="72" rx="8"/>
+  <text class="text body" x="690" y="233">DU</text>
+  <circle class="ok" cx="780" cy="208" r="7"/>
+
+  <rect class="node" x="650" y="315" width="150" height="72" rx="8"/>
+  <text class="text body" x="681" y="358">CU-UP</text>
+  <circle class="ok" cx="780" cy="333" r="7"/>
+
+  <rect class="node" x="870" y="190" width="150" height="72" rx="8"/>
+  <text class="text body" x="902" y="233">CU-CP</text>
+  <circle class="ok" cx="1000" cy="208" r="7"/>
+
+  <rect class="node" x="870" y="410" width="150" height="72" rx="8"/>
+  <text class="text body" x="910" y="453">UPF</text>
+  <circle class="ok" cx="1000" cy="428" r="7"/>
+
+  <rect class="node" x="1035" y="300" width="150" height="72" rx="8"/>
+  <text class="text body" x="1078" y="343">AMF</text>
+  <circle class="ok" cx="1165" cy="318" r="7"/>
+
+  <rect class="node" x="1035" y="520" width="150" height="72" rx="8"/>
+  <text class="text body" x="1079" y="563">SMF</text>
+  <circle class="ok" cx="1165" cy="538" r="7"/>
+
+  <path class="line" d="M546 286 C590 286 606 226 650 226"/>
+  <text class="text small muted" x="575" y="252">RF/ZMQ</text>
+  <path class="line" d="M800 226 L870 226"/>
+  <text class="text small muted" x="816" y="213">F1-C</text>
+  <path class="line" d="M800 351 C850 351 834 446 870 446"/>
+  <text class="text small muted" x="812" y="406">F1-U</text>
+  <path class="line" d="M1020 226 C1075 226 1065 300 1085 300"/>
+  <text class="text small muted" x="1030" y="270">NGAP</text>
+  <path class="line" d="M1020 446 C1075 446 1065 520 1085 520"/>
+  <text class="text small muted" x="1028" y="494">N3</text>
+  <path class="line" d="M1110 372 L1110 520"/>
+  <text class="text small muted" x="1124" y="470">SBI/PFCP</text>
+
+  <rect class="panel" x="318" y="666" width="284" height="214" rx="8"/>
+  <text class="text h2" x="342" y="706">Baseline</text>
+  <text class="text body ok" x="342" y="750">READY</text>
+  <text class="text small muted" x="342" y="790">核心网 + CU/DU 链路可用</text>
+  <text class="text mono" x="342" y="832">check_core_ready: OK</text>
+
+  <rect class="panel" x="622" y="666" width="284" height="214" rx="8"/>
+  <text class="text h2" x="646" y="706">协议覆盖</text>
+  <text class="text body" x="646" y="750">F1AP · E1AP · NGAP</text>
+  <text class="text body" x="646" y="786">GTP-U · XnAP</text>
+  <text class="text small muted" x="646" y="832">结构化 JSON + 关键 IE</text>
+
+  <rect class="panel" x="926" y="666" width="276" height="214" rx="8"/>
+  <text class="text h2" x="950" y="706">自动恢复</text>
+  <text class="text body ok" x="950" y="750">PASS</text>
+  <text class="text small muted" x="950" y="790">live testcase 后恢复 baseline</text>
+  <text class="text mono" x="950" y="832">restore_baseline: OK</text>
+
+  <rect class="panel" x="1222" y="100" width="394" height="780" rx="8" transform="translate(-222 0)"/>
+  <text class="text h2" x="1030" y="142">实时摘要</text>
+  <rect class="chip2" x="1030" y="172" width="168" height="40" rx="7"/>
+  <text class="text small ok" x="1048" y="198">UE Flow PASS</text>
+  <rect class="chip2" x="1030" y="228" width="212" height="40" rx="7"/>
+  <text class="text small ok" x="1048" y="254">Encoding Replay PASS</text>
+  <rect class="chip3" x="1030" y="284" width="236" height="40" rx="7"/>
+  <text class="text small warn" x="1048" y="310">Issue Tests 2 Crash</text>
+  <text class="text mono muted" x="1030" y="366">#4333 NRF: VULNERABLE_CRASH</text>
+  <text class="text mono muted" x="1030" y="402">#4532 SMF: VULNERABLE_CRASH</text>
+  <text class="text mono muted" x="1030" y="438">#4327 PFCP: ERROR_NO_IMPACT</text>
+  <text class="text mono muted" x="1030" y="474">#4289 AMF: NOT_REPRODUCED</text>
+</svg>

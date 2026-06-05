@@ -22,6 +22,9 @@ remove_if_present nr_ue
 remove_if_present nr_gnb
 
 docker compose -f "$COMPOSE_MAIN" -f "$COMPOSE_SPLIT" \
+  up -d mongo nrf scp ausf udr udm pcf bsf nssf amf smf upf webui >/dev/null
+
+docker compose -f "$COMPOSE_MAIN" -f "$COMPOSE_SPLIT" \
   up -d --force-recreate cu-cp cu-up du >/dev/null
 
 for _ in $(seq 1 "$TIMEOUT"); do

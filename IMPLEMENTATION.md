@@ -50,6 +50,217 @@ feature/replay-issue-dashboard
 
 Stage 5C 的详细执行顺序、协议覆盖矩阵和验收门槛见 `docs/replay-execution-plan.md`。其中 “GTP-U 优先” 只表示编码实现起点，不能解释为只对 GTP-U 做 live replay 或省略 F1AP/E1AP 的对端验证。
 
+## 2026-06-05 Stage 5C.6：Open5GS Issue-Driven 测试计划
+
+当前固定 Open5GS 镜像对应容器内版本：
+
+```text
+Open5GS daemon v2.7.6-131-g782a97e
+commit 782a97efe9e3acb1251e318bd3738ced4044dac8
+commit time 2025-12-06T13:23:34Z
+```
+
+筛选 Open5GS issue 时必须先核验修复 commit 是否晚于 `782a97e`。如果修复已经包含在
+当前 digest 中，该 issue 只能作为 regression / 已修复边界测试，不能作为“当前版本漏洞复现”
+主目标。候选筛选记录见：
+
+```text
+docs/open5gs-issue-research-2026-06-05.md
+docs/open5gs-unfixed-candidate-screening-2026-06-05.md
+```
+
+### 5C.6 当前确定优先级
+
+| 优先级 | 候选 | 组件 | 入口 | 当前判断 | 目标 |
+|--------|------|------|------|----------|------|
+| P0 | Issue `#4263` / PR `#4333` requester-features overflow | NRF / SBI core | SBI HTTP/2 | 修复晚于 `782a97e`，issue 明确报告 `v2.7.6`，触发输入清楚 | 首个主实现 testcase |
+| P0b | Issue `#4532` empty SUPI SM Context Create crash | SMF | SBI HTTP/2 | issue 报告 `v2.7.7` 仍受影响；当前 digest 更早；单请求触发路径清楚 | 第二个稳定 crash 展示 testcase |
+| P1 | Issue `#4209` / PR `#4289` late SDM_SUBSCRIPTIONS DELETE after deregistration/re-registration | AMF | NAS + NGAP + SBI 时序 | 修复晚于 `782a97e`，贴 5G SA 主线；基础 UERANSIM 时序 testcase 已自动化但当前分类为 `NOT_REPRODUCED` | 后续若继续推进，需要注入 SBI 延迟或乱序 |
+| P2 | PR `#4327` PFCP Session Modification Create FAR/QER/URR handling | UPF / PFCP | PFCP | 修复晚于 `782a97e`；Create FAR testcase 已命中 `Cannot find FAR-ID[7777] in PDR`，UPF 未崩溃 | PFCP robustness 展示 testcase |
+| Regression | `#3727`、`#3622`、`#3497`、`#4179`、`#4180` | UPF / AMF / PFCP | PFCP / NGAP / NAS / GTP-U | 当前 digest 理论上已包含修复 | 仅用于证明旧 issue 已安全处理 |
+
+### P0：`#4263` / PR `#4333` 具体测试流程
+
+Issue 摘要：
+
+- `requester-features` 使用超大十六进制字符串时，旧实现会在 SBI request 解析中触发
+  integer overflow / `FATAL` / abort。
+- 修复 PR `#4333` 晚于当前 digest，因此当前镜像可能仍受影响。
+- 触发点在 NRF 的 SBI discovery 入口，不需要 UE、RAN、PDU Session 或 handover。
+
+自动化实现要求：
+
+1. 新增 issue testcase JSON，例如：
+
+   ```text
+   tests/replay/open5gs_issues/nrf_requester_features_overflow.json
+   ```
+
+   建议字段：
+
+   ```json
+   {
+     "schema_version": 1,
+     "id": "open5gs_4263_nrf_requester_features_overflow",
+     "component": "nrf",
+     "protocol": "SBI",
+     "issue": "https://github.com/open5gs/open5gs/issues/4263",
+     "fix": "https://github.com/open5gs/open5gs/pull/4333",
+     "target": {
+       "container": "nrf",
+       "path": "/nnrf-disc/v1/nf-instances",
+       "method": "GET"
+     },
+     "mutation": {
+       "field": "requester-features",
+       "value": "ffffffffffffffffffffffffffffffffffffffff"
+     },
+     "expect": {
+       "vulnerable": ["nrf_crash", "fatal_log", "container_unhealthy"],
+       "fixed_or_safe": ["http_error", "safe_reject", "nrf_alive"]
+     }
+   }
+   ```
+
+2. 新增统一 runner，例如：
+
+   ```text
+   scripts/replay/run_open5gs_issue_tests.py
+   ```
+
+   Runner 默认 dry-run；只有显式 `--live` 才发请求到本地 Docker 环境。执行时必须：
+
+   - 读取 testcase JSON。
+   - 确认目标组件和 5GC baseline 当前可用。
+   - 从同一 Docker 5GC 网络内发起 SBI 请求；优先使用一次性 probe 容器或现有非目标 NF
+     容器，不依赖人工在宿主机 curl。
+   - 记录请求 URL、query 参数、HTTP 返回码、返回体摘要。
+   - 记录请求前后的 `nrf` container state、restart count、NRF 日志新增片段。
+   - 检查 `FATAL`、`abort`、`assert`、`Numerical result out of range` 等关键词。
+   - 无论 crash 与否，结束后恢复 baseline，并运行 `scripts/env/check_core_ready.sh`。
+   - 输出结构化结果 JSON，不提交 raw log。
+
+3. 结果分类必须明确，不允许只写“已发送 payload”：
+
+   ```text
+   VULNERABLE_CRASH     请求后 NRF 崩溃、重启或出现 fatal/assert 证据
+   SAFE_REJECT          请求被 4xx/错误响应拒绝，NRF 存活，baseline 正常
+   NOT_REPRODUCED       未观察到 crash，也没有明确 safe reject，需要记录边界
+   INFRA_FAIL           环境、网络、依赖失败，不能计入 issue 结论
+   ```
+
+4. 报告输出：
+
+   ```text
+   json/replay_results/stage5c6/open5gs_issue_results.json
+   reports/testcase_reports/stage5c6-open5gs-issue-report.md
+   ```
+
+   报告必须包含：
+
+   - 当前 Open5GS digest / commit。
+   - issue 与修复 PR URL。
+   - 输入 mutation。
+   - 请求前后目标 NF 健康状态。
+   - 观察到的 crash / safe reject / not reproduced 证据。
+   - baseline 是否成功恢复。
+
+### P1：`#4289` AMF deregistration / re-registration race 测试流程
+
+### P0b：`#4532` SMF empty SUPI crash 测试流程
+
+Issue 摘要：
+
+- `POST /nsmf-pdusession/v1/sm-contexts` 中 `supi` 为空字符串时，SMF 会把空 SUPI
+  传入 hash lookup 路径，触发 `ogs_hash_get_debug: Assertion \`klen\` failed`。
+- Issue 报告 `v2.7.7` 仍受影响；当前固定 digest 早于该版本和后续修复边界。
+- 触发点在 SMF 的 SBI PDU Session create 入口，不需要 UE、RAN、PDU Session 或 handover。
+
+自动化实现：
+
+1. testcase：
+
+   ```text
+   tests/replay/open5gs_issues/smf_empty_supi_sm_context_create.json
+   ```
+
+2. runner：
+
+   ```bash
+   python3 scripts/replay/run_open5gs_issue_tests.py --live \
+     --case tests/replay/open5gs_issues/smf_empty_supi_sm_context_create.json \
+     --output json/replay_results/stage5c6/open5gs_issue_4532_result.json
+   ```
+
+3. 当前 live 结论：
+
+   ```text
+   VULNERABLE_CRASH
+   ```
+
+4. 证据：
+
+   - `curl exit 56`，`Connection reset by peer`
+   - `smf: running -> exited`
+   - `exit_code=134`
+   - SMF fatal log：`ogs_hash_get_debug: Assertion \`klen\` failed`
+   - live 后 `restore_baseline.sh` 和 `check_core_ready.sh` 均通过
+
+### P1：`#4289` AMF deregistration / re-registration race 测试流程
+
+该 testcase 已完成基础自动化：使用 UERANSIM `nr-cli` 执行 `deregister normal`，等待 UE
+自动 re-registration，并连续重复 3 轮。当前结果为 `NOT_REPRODUCED`：AMF 未 crash，
+必要日志均出现，baseline 可恢复。
+
+后续若继续提高复现概率，需要增加 UDM/SMF/SCP 路径的 SBI 延迟或乱序注入。
+
+目标流程：
+
+1. 启动 baseline 并确认 UE 可注册。
+2. 跑一次注册流程，可选建立 PDU Session。
+3. 触发 UE-initiated deregistration / release。
+4. 在 release 后尽快启动第二次 registration。
+5. 若可行，引入 UDM/SMF SBI 响应延迟或乱序，放大 late response race window。
+6. 检查 AMF 是否出现 `ogs_assert_if_reached()`、fatal log、进程退出、重复 UE context 或注册失败。
+7. 自动清理 UE 容器并恢复 baseline。
+
+输出必须区分：
+
+- 稳定复现 crash。
+- 未打中 race 但记录时序窗口和日志。
+- 当前环境不具备注入 SBI 延迟的能力，作为边界报告。
+
+### P2：`#4327` PFCP Session Modification robustness 测试流程
+
+该 testcase 用于 PFCP 互通/健壮性展示，不应默认宣称 crash。当前已实现
+`Create FAR` live testcase，结论为 `PFCP_ERROR_NO_IMPACT`：PFCP 包进入 UPF
+Session Modification 处理路径并触发 `Cannot find FAR-ID[7777] in PDR`，但 UPF
+容器保持运行，restart count 不变，baseline 可恢复。
+
+目标流程：
+
+1. 建立最小 PDU Session 或受控 PFCP session。
+2. 注入 PFCP Session Modification Request，包含此前未预建的 `CreateFAR`、`CreateQER`、
+   `CreateURR`，或重复 remove 同一对象。当前实现先覆盖 `CreateFAR far_id=7777`。
+3. 检查 SMF/UPF PFCP response cause、UPF/SMF 日志、PFCP association 是否保持。
+4. 若有现有 UE data path，检查 GTP-U / ping 是否中断。
+5. 自动恢复 baseline。
+
+关键实现约束：
+
+- 普通 UDP 发送会使用随机源端口，UPF 会报 `Cannot find PFCP-Node`，无法进入
+  `#4327` 目标路径。
+- 因此 live testcase 必须从 `smf` 容器内发送 `SMF:8805 -> UPF:8805` 的 PFCP 包，
+  runner 当前通过 opt-in `source_port=8805` 自动完成这一点。
+
+结果分类：
+
+- `PFCP_ERROR_WITH_SERVICE_IMPACT`
+- `SAFE_REJECT_NO_IMPACT`
+- `ACCEPTED_OR_FIXED_BEHAVIOR`
+- `PFCP_ERROR_NO_IMPACT`
+- `INFRA_FAIL`
+
 ---
 
 # 5G O-RAN 协议栈解析和测试项目实施文档

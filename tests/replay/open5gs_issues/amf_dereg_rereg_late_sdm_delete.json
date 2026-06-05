@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "open5gs_4289_amf_dereg_rereg_late_sdm_delete",
+  "title": "AMF late SDM_SUBSCRIPTIONS DELETE after deregistration/re-registration",
+  "component": "amf",
+  "protocol": "NAS_NGAP_SBI",
+  "issue": "https://github.com/open5gs/open5gs/issues/4209",
+  "fix": "https://github.com/open5gs/open5gs/pull/4289",
+  "transport": {
+    "kind": "ueransim_cli",
+    "gnb_container": "nr_gnb",
+    "ue_container": "nr_ue",
+    "ue_node": "imsi-001010123456780"
+  },
+  "target": {
+    "container": "amf"
+  },
+  "sequence": {
+    "iterations": 3,
+    "deregister_command": "deregister normal",
+    "registration_timeout_seconds": 35,
+    "settle_seconds": 2
+  },
+  "detection": {
+    "fatal_keywords": [
+      "FATAL",
+      "abort",
+      "assert",
+      "ogs_assert_if_reached",
+      "unexpected GMM state"
+    ],
+    "required_observations": [
+      "Deregistration request",
+      "InitialUEMessage",
+      "Registration complete"
+    ]
+  },
+  "expect": {
+    "vulnerable": [
+      "amf_crash",
+      "fatal_log",
+      "assert_log"
+    ],
+    "not_reproduced": [
+      "amf_alive",
+      "deregistration_observed",
+      "re_registration_observed"
+    ]
+  }
+}
