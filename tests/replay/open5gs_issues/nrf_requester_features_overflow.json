@@ -6,6 +6,7 @@
   "protocol": "SBI",
   "issue": "https://github.com/open5gs/open5gs/issues/4263",
   "fix": "https://github.com/open5gs/open5gs/pull/4333",
+  "description": "NRF 的 SBI 发现接口使用 requester-features 位图参数，Open5GS v2.7.6 以 atoi() 解析该字段，可被超大整数值触发整数溢出导致 NRF 进程崩溃。本 testcase 通过解析 SBI 协议结构，构造含畸形 requester-features 参数的 GET 请求验证该漏洞。",
   "transport": {
     "scheme": "http",
     "http2_prior_knowledge": true,

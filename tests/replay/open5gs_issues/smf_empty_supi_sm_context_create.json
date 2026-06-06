@@ -6,6 +6,7 @@
   "protocol": "SBI",
   "issue": "https://github.com/open5gs/open5gs/issues/4532",
   "fix": "unfixed-as-of-2026-06-05",
+  "description": "SMF 处理 PDU Session Create 的 SBI 请求时，若 JSON body 中 supi 字段为空字符串，会触发空指针解引用导致 SMF 进程 crash（segfault）。本 testcase 先解析正常 PDU Session 建立流程中 AMF→SMF 的 SBI 消息结构，提取 nsmf-pdusession/v1/sm-contexts 的完整请求模板，再将 supi 字段替换为空字符串后重放至 SMF，验证该畸形包能否触发目标网元崩溃。该漏洞在 v2.7.7 中仍未修复。",
   "transport": {
     "scheme": "http",
     "http2_prior_knowledge": true,

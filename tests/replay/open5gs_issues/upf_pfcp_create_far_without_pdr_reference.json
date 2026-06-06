@@ -6,6 +6,7 @@
   "protocol": "PFCP",
   "issue": "https://github.com/open5gs/open5gs/pull/4327",
   "fix": "https://github.com/open5gs/open5gs/pull/4327",
+  "description": "UPF 在 PFCP Session Modification 中收到 Create FAR 但没有对应的 PDR 引用时，日志报错 \"Cannot find FAR-ID\" 但进程不会崩溃。本 testcase 通过解析 PFCP 协议结构并构造含孤立 FAR-ID 的 Session Modification 消息进行鲁棒性验证。",
   "transport": {
     "kind": "pfcp_udp",
     "sender_container": "smf",

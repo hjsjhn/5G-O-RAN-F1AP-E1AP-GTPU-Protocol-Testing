@@ -78,6 +78,7 @@ export interface IssueCaseSummary {
   protocol: string;
   issue: string;
   fix: string;
+  description: string;
   casePath: string;
   resultPath?: string;
   classification?: string;

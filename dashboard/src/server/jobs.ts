@@ -571,4 +571,151 @@ export class JobManager {
     void this.executeIssueJob(job, { casePath: options.casePath, live: options.live }, resultFilePath);
     return this.snapshot(job);
   }
+
+  private async scanFlowProgress(job: MutableJob, flow: string, jobStartedAt: number): Promise<void> {
+    try {
+      const resultBase = resolveRepoPath("json/flow_results");
+      const entries = await fs.readdir(resultBase);
+      const flowDirs = entries
+        .filter((name) => name.startsWith(`${flow}_`))
+        .sort()
+        .reverse();
+
+      let foundRunId: string | undefined;
+      for (const dir of flowDirs) {
+        const dirPath = resolveRepoPath(path.join("json/flow_results", dir));
+        try {
+          const stat = await fs.stat(dirPath);
+          if (stat.birthtimeMs >= jobStartedAt - 2000 || stat.mtimeMs >= jobStartedAt - 2000) {
+            foundRunId = dir;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      const prev = (job.resultSummary ?? {}) as Record<string, unknown>;
+      const next = { ...prev };
+
+      if (foundRunId && !prev.liveRunId) {
+        next.liveRunId = foundRunId;
+        this.note(job, `检测到 Run: ${foundRunId}`);
+      }
+
+      if (foundRunId) {
+        const resultPath = resolveRepoPath(path.join("json/flow_results", foundRunId, "result.json"));
+        const data = await this.safeReadJson(resultPath);
+        if (data) {
+          if (Array.isArray(data.checks)) {
+            next.liveChecks = data.checks;
+          }
+          if (data.counts) {
+            next.liveCounts = data.counts;
+          }
+          if (Array.isArray(data.timeline)) {
+            next.liveTimeline = data.timeline;
+          }
+          next.result = data.result;
+          job.resultPath = resultPath;
+        }
+      }
+
+      job.resultSummary = next;
+    } catch {
+      // scan failed, ignore
+    }
+  }
+
+  private async executeFlowJob(
+    job: MutableJob,
+    flow: string
+  ): Promise<void> {
+    const command = `bash scripts/flows/run_ue_flow.sh ${flow}`;
+    const jobStartedAt = new Date(job.startedAt).getTime();
+
+    const scanTimer = setInterval(() => {
+      if (job.settled || job.aborted) {
+        clearInterval(scanTimer);
+        return;
+      }
+      void this.scanFlowProgress(job, flow, jobStartedAt);
+    }, 3000);
+    job.timers.push(scanTimer as unknown as NodeJS.Timeout);
+
+    try {
+      const exitCode = await this.startProcess(job, command);
+      if (job.aborted || job.settled) {
+        return;
+      }
+
+      clearInterval(scanTimer);
+
+      this.markStage(job, {
+        index: job.stepTotal,
+        total: job.stepTotal,
+        name: "Collecting result",
+        label: "正在读取 flow 结果文件。",
+        status: "collecting_results"
+      });
+      this.note(job, "正在读取 flow 结果文件");
+
+      await this.scanFlowProgress(job, flow, jobStartedAt);
+
+      const resultSummary = job.resultSummary;
+      const resultValue = typeof resultSummary?.result === "string" ? String(resultSummary.result) : "";
+      const acceptedResult = exitCode === 0 && resultValue === "PASS";
+
+      if (!acceptedResult && !job.error) {
+        job.error = `unexpected result: exit=${exitCode}, result=${resultValue || "unknown"}`;
+      }
+
+      this.finalizeJob(job, acceptedResult ? "completed" : "completed_with_failure");
+    } catch (error) {
+      if (job.aborted || job.settled) {
+        return;
+      }
+      job.error = error instanceof Error ? error.message : "flow job failed";
+      this.finalizeJob(job, "completed_with_failure");
+    }
+  }
+
+  async startFlowJob(flow: string): Promise<JobSummary> {
+    this.ensureMutatingCapacity();
+
+    const label = flow === "registration_release" ? "Registration + Release" : "Registration + PDU Session";
+    const job = this.register(newJob("ue_flow", `UE Flow: ${label}`, true));
+    this.currentMutatingJobId = job.id;
+
+    this.markStage(job, {
+      index: 1,
+      total: 4,
+      name: "Checking baseline",
+      label: "正在确认 baseline 健康。",
+      status: "running"
+    });
+    this.scheduleStages(job, [
+      {
+        afterMs: 2000,
+        stage: {
+          index: 2,
+          total: 4,
+          name: "Running UE flow",
+          label: `正在执行 ${label}，请等待完成。`
+        }
+      },
+      {
+        afterMs: 15000,
+        stage: {
+          index: 3,
+          total: 4,
+          name: "Collecting results",
+          label: "正在收集抓包和日志结果。"
+        }
+      }
+    ]);
+
+    void this.executeFlowJob(job, flow);
+    return this.snapshot(job);
+  }
 }

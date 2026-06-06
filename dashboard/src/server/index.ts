@@ -106,6 +106,20 @@ app.get("/api/flows/latest", async (_request, response) => {
   response.json(await getLatestFlows());
 });
 
+app.post("/api/flows/:flow/run", async (request, response) => {
+  const flow = request.params.flow;
+  if (flow !== "registration_pdu_session" && flow !== "registration_release") {
+    response.status(400).json({ error: "不支持的 flow 类型。" });
+    return;
+  }
+  try {
+    const job = await jobManager.startFlowJob(flow);
+    response.status(202).json(job);
+  } catch (error) {
+    response.status(409).json({ error: error instanceof Error ? error.message : "flow run failed" });
+  }
+});
+
 app.get("/api/protocol-replay", (_request, response) => {
   response.json(getProtocolReplayCards());
 });

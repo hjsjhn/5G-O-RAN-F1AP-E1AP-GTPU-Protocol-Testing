@@ -14,10 +14,10 @@ import type {
 
 const navItems: Array<{ key: NavKey; label: string; description: string }> = [
   { key: "overview", label: "系统总览", description: "baseline 健康、容器状态、恢复入口" },
-  { key: "issues", label: "Issue 测试", description: "Open5GS issue-driven testcase" },
-  { key: "ue-flow", label: "UE 流程", description: "完整注册与释放流程结果" },
   { key: "protocol-replay", label: "协议 / 回放", description: "协议解析、编码与验证报告" },
-  { key: "reports", label: "报告", description: "进度、实施计划与阶段报告" }
+  { key: "ue-flow", label: "UE 流程", description: "完整注册与释放流程结果" },
+  { key: "issues", label: "Issue 测试", description: "Open5GS issue-driven testcase" }
+  // { key: "reports", label: "报告", description: "进度、实施计划与阶段报告" }
 ];
 
 const statusTone: Record<string, string> = {
@@ -148,24 +148,27 @@ function SummaryCard(props: {
   tone?: string;
 }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-panel/90 p-4 shadow-panel">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-line bg-panel/90 p-3 shadow-panel">
       <div className="text-xs uppercase tracking-[0.2em] text-muted">{props.title}</div>
-      <div className={`mt-3 break-all text-lg font-semibold ${props.tone ?? "text-ink"}`}>{props.value}</div>
-      {props.detail ? <div className="mt-2 break-all text-sm text-muted">{props.detail}</div> : null}
+      <div className={`mt-2 truncate text-lg font-semibold ${props.tone ?? "text-ink"}`}>{props.value}</div>
+      {props.detail ? <div className="mt-1 truncate text-sm text-muted">{props.detail}</div> : null}
     </div>
   );
 }
 
 function KV(props: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid gap-1 rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2">
       <div className="text-xs text-muted">{props.label}</div>
-      <div className="text-sm text-ink">{props.value}</div>
+      <div className="mt-0.5 truncate text-sm text-ink">{props.value}</div>
     </div>
   );
 }
 
 export function App() {
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [selectedFlowName, setSelectedFlowName] = useState<string | null>(null);
+  const [dismissedJobId, setDismissedJobId] = useState<string | null>(null);
   const [activeNav, setActiveNav] = useState<NavKey>("overview");
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const [issues, setIssues] = useState<IssueCaseSummary[]>([]);
@@ -176,18 +179,19 @@ export function App() {
   const [selectedReportSlug, setSelectedReportSlug] = useState<string>("progress");
   const [reportDoc, setReportDoc] = useState<MarkdownDocument | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobSummary | null>(null);
+  const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileDocument | null>(null);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState<string>("");
 
   const currentIssue = useMemo(
-    () => issues.find((item) => item.id === selectedIssueId) ?? issues[0] ?? null,
+    () => selectedIssueId ? (issues.find((item) => item.id === selectedIssueId) ?? null) : (issues[0] ?? null),
     [issues, selectedIssueId]
   );
 
   const currentFlow = useMemo(
-    () => flows.find((item) => item.flow === "registration_pdu_session") ?? flows[0] ?? null,
-    [flows]
+    () => selectedFlowName ? flows.find((item) => item.flow === selectedFlowName) ?? null : null,
+    [flows, selectedFlowName]
   );
 
   async function loadAll() {
@@ -205,19 +209,7 @@ export function App() {
       setFlows(flowData);
       setCards(protocolData);
       setReports(reportData);
-      if (!selectedIssueId && issueData[0]) {
-        setSelectedIssueId(issueData[0].id);
-      }
-      if (!selectedJob && jobData[0]) {
-        setSelectedJob(jobData[0]);
-      } else if (selectedJob) {
-        const current = jobData.find((job) => job.id === selectedJob.id);
-        if (current) {
-          setSelectedJob(current);
-        } else {
-          setSelectedJob(jobData[0] ?? null);
-        }
-      }
+      setJobs(jobData);
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "加载失败");
@@ -243,6 +235,27 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!selectedIssueId && issues.length > 0) {
+      setSelectedIssueId(issues[0].id);
+    }
+  }, [issues]);
+
+  useEffect(() => {
+    if (!selectedJob) {
+      const runningJob = jobs.find((job) => !job.finishedAt && job.id !== dismissedJobId);
+      if (runningJob) {
+        setDismissedJobId(null);
+        setSelectedJob(runningJob);
+      }
+      return;
+    }
+    const current = jobs.find((job) => job.id === selectedJob.id);
+    if (current) {
+      setSelectedJob(current);
+    }
+  }, [jobs]);
+
+  useEffect(() => {
     if (activeNav === "reports" && selectedReportSlug) {
       void loadReport(selectedReportSlug);
     }
@@ -252,6 +265,7 @@ export function App() {
     setBusy("restore");
     try {
       const job = await getJson<JobSummary>("/api/system/restore", { method: "POST" });
+      setDismissedJobId(null);
       setSelectedJob(job);
       await loadAll();
     } catch (caught) {
@@ -285,11 +299,26 @@ export function App() {
         method: "POST",
         body: JSON.stringify(live ? { confirmed: true } : {})
       });
+      setDismissedJobId(null);
       setSelectedJob(job);
       setActiveNav("issues");
       await loadAll();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "执行失败");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function runFlow(flow: string) {
+    setBusy(`flow_${flow}`);
+    try {
+      const job = await getJson<JobSummary>(`/api/flows/${flow}/run`, { method: "POST" });
+      setDismissedJobId(null);
+      setSelectedJob(job);
+      await loadAll();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Flow 执行失败");
     } finally {
       setBusy("");
     }
@@ -308,6 +337,7 @@ export function App() {
       const job = await getJson<JobSummary>(`/api/jobs/${selectedJob.id}/abort-and-restore`, {
         method: "POST"
       });
+      setDismissedJobId(null);
       setSelectedJob(job);
       await loadAll();
     } catch (caught) {
@@ -345,12 +375,28 @@ export function App() {
             </div>
           }
         />
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           <SummaryCard
             title="Baseline"
-            value={system.baseline.ready ? "READY" : "FAIL"}
-            detail={system.baseline.summary}
-            tone={system.baseline.ready ? "text-accent" : "text-danger"}
+            value={
+              system.currentMutatingJob
+                ? "执行中"
+                : system.baseline.ready
+                  ? "READY"
+                  : "FAIL"
+            }
+            detail={
+              system.currentMutatingJob
+                ? `正在执行: ${system.currentMutatingJob.stepName}`
+                : system.baseline.summary
+            }
+            tone={
+              system.currentMutatingJob
+                ? "text-warn"
+                : system.baseline.ready
+                  ? "text-accent"
+                  : "text-danger"
+            }
           />
           <SummaryCard title="Open5GS Digest" value={system.open5gsImage} detail={`Branch: ${system.branch}`} />
           <SummaryCard
@@ -360,7 +406,7 @@ export function App() {
             tone={system.lastRestoreState === "failed" ? "text-danger" : system.lastRestoreState === "ok" ? "text-accent" : "text-ink"}
           />
         </div>
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1.2fr_1fr]">
           <div className="rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
             <div className="mb-4 text-sm font-medium text-ink">实验拓扑</div>
             <div className="grid gap-3 text-sm text-muted md:grid-cols-3">
@@ -404,9 +450,9 @@ export function App() {
       <div className="space-y-6">
         <SectionTitle
           title="Issue 测试"
-          description="读取 testcase JSON 和 stage5c6 结果，支持 dry-run 与 live-run。"
+          description="读取 testcase JSON 和 stage5c6 结果，支持 live-run issue 验证。"
         />
-        <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
           <div className="space-y-3">
             {issues.map((item) => (
               <button
@@ -441,11 +487,6 @@ export function App() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <ActionButton
-                    label="执行 Dry-run"
-                    onClick={() => void runIssue(currentIssue.id, false)}
-                    disabled={busy !== "" || system?.currentMutatingJob?.status === "restore_failed"}
-                  />
-                  <ActionButton
                     label="执行 Live run"
                     onClick={() => void runIssue(currentIssue.id, true)}
                     disabled={busy !== "" || Boolean(system?.currentMutatingJob)}
@@ -453,51 +494,162 @@ export function App() {
                   />
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {currentIssue.description ? (
+                <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3 text-sm leading-6 text-[#ced9e5]">
+                  {currentIssue.description}
+                </div>
+              ) : null}
+              {(() => {
+                const job = selectedJob;
+                if (!job || job.finishedAt || (job.type !== "issue_live_run" && job.type !== "issue_dry_run")) return null;
+                const jobForThisIssue = (job.title ?? "").includes(currentIssue.id);
+                if (!jobForThisIssue) return null;
+                const isLive = job.type === "issue_live_run";
+                return (
+                  <div className="rounded-xl border border-warn/30 bg-warn/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-warn">
+                      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-warn" />
+                      {isLive ? "Live Run 执行中" : "Dry-Run 执行中"}
+                    </div>
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex justify-between"><span className="text-muted">阶段</span><span className="text-ink">{job.stepName}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">进度</span><span className="font-mono text-ink">{job.stepIndex} / {job.stepTotal}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">用时</span><span className="font-mono text-ink">{formatSeconds(job.elapsedSeconds)}</span></div>
+                      <div className="text-xs text-muted mt-1">{job.progressLabel}</div>
+                    </div>
+                    {job.stdoutTail.length > 0 ? (
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-line/70 bg-[#0b1524] p-3 font-mono text-xs text-[#ced9e5]">{job.stdoutTail.join("\n")}</pre>
+                    ) : null}
+                  </div>
+                );
+              })()}
+              {system?.containers ? (
+                <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                  <div className="mb-2 text-xs text-muted">网元状态</div>
+                  <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {system.containers.map((c) => {
+                      const isTarget = c.name === currentIssue.component;
+                      return (
+                        <div key={c.name} className={`flex items-center justify-between gap-1 rounded-lg border px-2 py-1 text-xs ${isTarget ? "border-accent/50 bg-accent/5" : "border-line/50"}`}>
+                          <span className={`font-mono ${isTarget ? "text-ink" : "text-muted"}`}>{c.name}</span>
+                          <span className={c.running ? "text-accent" : "text-danger"}>{c.running ? "running" : c.status}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
                 <KV label="Issue URL" value={<a className="text-accent" href={currentIssue.issue} target="_blank" rel="noreferrer">{currentIssue.issue}</a>} />
                 <KV label="Fix / 边界" value={<span className="break-all font-mono text-xs">{currentIssue.fix}</span>} />
                 <KV label="Mutation" value={<span className="font-mono text-xs">{currentIssue.summary.mutation}</span>} />
                 <KV label="Request Summary" value={<span className="font-mono text-xs">{currentIssue.summary.request}</span>} />
                 <KV label="Testcase JSON" value={pathTag(currentIssue.casePath)} />
-                <KV label="默认展示结果" value={<span className="font-mono text-xs">{currentIssue.displayMode ?? "无"}</span>} />
-                <KV label="Latest Live Result JSON" value={pathTag(currentIssue.latestLiveRun?.path)} />
-                <KV label="Latest Dry-run Result JSON" value={pathTag(currentIssue.latestDryRun?.path)} />
-              </div>
-              {currentIssue.result ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  <KV label="classification" value={<span className={`font-mono ${classForStatus(String(currentIssue.result.classification ?? ""))}`}>{String(currentIssue.result.classification ?? "-")}</span>} />
-                  <KV
-                    label="baseline_restore.restored"
-                    value={
-                      <span className={`font-mono ${currentIssue.result.classification === "DRY_RUN" ? "text-muted" : currentIssue.baselineRestored ? "text-accent" : "text-danger"}`}>
-                        {currentIssue.result.classification === "DRY_RUN" ? "N/A (DRY_RUN)" : String(currentIssue.baselineRestored)}
-                      </span>
-                    }
-                  />
-                  <KV label="target_before" value={<span className="font-mono text-xs">{`${String((currentIssue.result.target_before as { status?: string } | undefined)?.status ?? "-")} -> ${String((currentIssue.result.target_after as { status?: string } | undefined)?.status ?? "-")}`}</span>} />
-                  <KV label="restart_count_delta" value={<span className="font-mono text-xs">{String(currentIssue.result.restart_count_delta ?? 0)}</span>} />
-                  <KV label="request_summary" value={<span className="font-mono text-xs break-all">{JSON.stringify(currentIssue.result.request_summary ?? {}, null, 0)}</span>} />
-                  <KV label="log delta" value={<span className="font-mono text-xs break-all">{JSON.stringify(currentIssue.result.log_delta ?? currentIssue.result[`${currentIssue.component}_log_delta`] ?? {}, null, 0)}</span>} />
-                </div>
-              ) : null}
+                <KV label="Latest Live Result" value={pathTag(currentIssue.latestLiveRun?.path)} />
+              {(() => {
+                const isRunning = selectedJob && !selectedJob.finishedAt && (selectedJob.type === "issue_live_run" || selectedJob.type === "issue_dry_run") && (selectedJob.title ?? "").includes(currentIssue.id);
+                if (isRunning) return null;
+                let r = currentIssue.result;
+                if (!r && selectedJob?.finishedAt && (selectedJob.type === "issue_live_run" || selectedJob.type === "issue_dry_run") && (selectedJob.title ?? "").includes(currentIssue.id)) {
+                  r = selectedJob.resultSummary as Record<string, unknown> | undefined;
+                }
+                if (!r) return null;
+                const classification = String(r.classification ?? "");
+                const isCrash = classification === "VULNERABLE_CRASH";
+                const isDryRun = classification === "DRY_RUN";
+                const isSafeReject = classification === "SAFE_REJECT" || classification === "NOT_REPRODUCED";
+                const before = r.target_before as { status?: string; exit_code?: number } | undefined;
+                const after = r.target_after as { status?: string; exit_code?: number } | undefined;
+                const req = r.request as { curl_exit_code?: number; curl_stderr?: string } | undefined;
+                const restore = r.baseline_restore as { restored?: boolean } | undefined;
+                const rawLogDelta = r[`${currentIssue.component}_log_delta`];
+                const componentLogs = (rawLogDelta ?? r.log_delta) as Record<string, unknown> | undefined;
+                const fatalHits = (componentLogs as { fatal_keyword_hits?: string[] } | undefined)?.fatal_keyword_hits;
+                const pfcpErrorHits = (componentLogs as { pfcp_error_hits?: string[] } | undefined)?.pfcp_error_hits;
+                const isPfcpError = classification === "PFCP_ERROR_NO_IMPACT" || classification === "ACCEPTED_OR_FIXED_BEHAVIOR";
+                const pfcpRequest = r.pfcp_request as { message_type?: string; far_id?: number; payload_hex?: string } | undefined;
+                const pfcpResponse = r.pfcp_response as { received?: boolean; cause?: number; cause_name?: string } | undefined;
+                const pfcpSession = r.pfcp_session as { up_seid?: number; cp_seid?: number; ipv4?: string } | undefined;
+
+                const bannerTone = isCrash ? "border-danger/50 bg-danger/10" : isPfcpError ? "border-warn/30 bg-warn/5" : isSafeReject ? "border-accent/30 bg-accent/5" : "border-warn/30 bg-warn/5";
+                const bannerLabel = isCrash ? "目标网元崩溃" : isPfcpError ? "PFCP 鲁棒性验证" : isDryRun ? "Dry-Run (未实际发送)" : isSafeReject ? "安全拒绝 / 未复现" : classification;
+                const bannerColor = isCrash ? "text-danger" : isSafeReject ? "text-accent" : "text-warn";
+
+                return (
+                  <div className={`rounded-xl border p-4 space-y-4 ${bannerTone}`}>
+                    <div className={`text-base font-semibold ${bannerColor}`}>
+                      {bannerLabel}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-muted">目标网元 ({currentIssue.component.toUpperCase()})</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-sm text-ink">{before?.status ?? "-"}</span>
+                          <span className="text-muted">→</span>
+                          <span className={`text-sm font-semibold ${after?.status !== before?.status ? "text-danger" : "text-ink"}`}>{after?.status ?? "-"}</span>
+                        </div>
+                        {typeof after?.exit_code === "number" ? <div className="mt-1 text-xs text-muted">exit code: {String(after.exit_code)}</div> : null}
+                      </div>
+                      <div className="rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-muted">请求结果</div>
+                        <div className="mt-1 text-sm text-ink">{req?.curl_stderr ?? "-"}</div>
+                        <div className="mt-1 text-xs text-muted">curl exit: {String(req?.curl_exit_code ?? "-")}</div>
+                      </div>
+                      <div className="rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-muted">Baseline 恢复</div>
+                        <div className={`mt-1 text-sm font-semibold ${restore?.restored ? "text-accent" : "text-danger"}`}>
+                          {isDryRun ? "N/A (DRY_RUN)" : restore?.restored ? "已恢复" : "恢复失败"}
+                        </div>
+                        {typeof r.restart_count_delta === "number" && r.restart_count_delta > 0 ? (
+                          <div className="mt-1 text-xs text-danger">重启次数: +{String(r.restart_count_delta)}</div>
+                        ) : null}
+                      </div>
+                    </div>
+                    {isPfcpError && pfcpRequest ? (
+                      <div className="rounded-xl border border-warn/30 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-warn">PFCP 请求</div>
+                        <div className="mt-1 space-y-1 text-xs">
+                          <div className="text-[#ced9e5]">消息类型: <span className="font-mono">{pfcpRequest.message_type ?? "-"}</span></div>
+                          <div className="text-[#ced9e5]">FAR-ID: <span className="font-mono">{String(pfcpRequest.far_id ?? "-")}</span></div>
+                          {pfcpSession ? <div className="text-[#ced9e5]">F-SEID: <span className="font-mono">UP:0x{(pfcpSession.up_seid ?? 0).toString(16)} CP:0x{(pfcpSession.cp_seid ?? 0).toString(16)}</span></div> : null}
+                        </div>
+                      </div>
+                    ) : null}
+                    {isPfcpError && pfcpResponse ? (
+                      <div className="rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-muted">PFCP 响应</div>
+                        <div className="mt-1 space-y-1 text-xs">
+                          <div className="text-[#ced9e5]">收到响应: <span className="font-mono">{pfcpResponse.received ? "是" : "否"}</span></div>
+                          <div className="text-[#ced9e5]">Cause: <span className="font-mono">{pfcpResponse.cause_name ?? String(pfcpResponse.cause ?? "-")}</span></div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {fatalHits && fatalHits.length > 0 ? (
+                      <div className="rounded-xl border border-danger/30 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-danger">关键日志证据 <span className="text-muted">(容器 UTC 时间)</span></div>
+                        <div className="mt-1 space-y-1">
+                          {fatalHits.slice(0, 3).map((hit, i) => (
+                            <div key={i} className="font-mono text-xs text-[#ced9e5] break-all">{hit}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {pfcpErrorHits && pfcpErrorHits.length > 0 ? (
+                      <div className="rounded-xl border border-warn/30 bg-[#0b1524] px-3 py-2">
+                        <div className="text-xs text-warn">PFCP 错误日志 <span className="text-muted">(容器 UTC 时间)</span></div>
+                        <div className="mt-1 space-y-1">
+                          {pfcpErrorHits.slice(0, 5).map((hit, i) => (
+                            <div key={i} className="font-mono text-xs text-[#ced9e5] break-all">{hit}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
               <div className="flex flex-wrap gap-2">
                 <ActionButton label="查看 Testcase JSON" onClick={() => void openFile(currentIssue.casePath)} />
                 <ActionButton label="查看 Live 结果" onClick={() => void openFile(currentIssue.latestLiveRun?.path)} disabled={!currentIssue.latestLiveRun?.path} />
-                <ActionButton label="查看 Dry-run 结果" onClick={() => void openFile(currentIssue.latestDryRun?.path)} disabled={!currentIssue.latestDryRun?.path} />
               </div>
-              {(currentIssue.id.includes("4532") && currentIssue.result) ? (
-                <div className="rounded-2xl border border-danger/40 bg-danger/10 p-4">
-                  <div className="text-sm font-semibold text-danger">#4532 关键展示证据</div>
-                  <div className="mt-3 grid gap-2 text-sm text-ink">
-                    <div><span className="text-muted">classification:</span> <span className="font-mono text-danger">{String(currentIssue.result.classification ?? "-")}</span></div>
-                    <div><span className="text-muted">curl:</span> <span className="font-mono">exit {String((currentIssue.result.request as { curl_exit_code?: number } | undefined)?.curl_exit_code ?? "-")}, {String((currentIssue.result.request as { curl_stderr?: string } | undefined)?.curl_stderr ?? "-")}</span></div>
-                    <div><span className="text-muted">smf:</span> <span className="font-mono">{`${String((currentIssue.result.target_before as { status?: string } | undefined)?.status ?? "-")} -> ${String((currentIssue.result.target_after as { status?: string } | undefined)?.status ?? "-")}`}</span></div>
-                    <div><span className="text-muted">exit_code:</span> <span className="font-mono">{String((currentIssue.result.target_after as { exit_code?: number } | undefined)?.exit_code ?? "-")}</span></div>
-                    <div><span className="text-muted">fatal:</span> <span className="font-mono text-xs break-all">{String(((currentIssue.result.smf_log_delta as { fatal_keyword_hits?: string[] } | undefined)?.fatal_keyword_hits ?? [])[0] ?? "-")}</span></div>
-                    <div><span className="text-muted">baseline_restore.restored:</span> <span className="font-mono text-accent">{String((currentIssue.result.baseline_restore as { restored?: boolean } | undefined)?.restored ?? false)}</span></div>
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -505,48 +657,232 @@ export function App() {
     );
   }
 
+  const runningFlowJob = useMemo(() => {
+    const job = selectedJob;
+    if (!job || job.type !== "ue_flow") {
+      return null;
+    }
+    if (job.status === "completed" || job.status === "completed_with_failure" || job.status === "restore_failed") {
+      const summary = job.resultSummary as Record<string, unknown> | undefined;
+      const liveChecks = summary?.liveChecks as Array<unknown> | undefined;
+      if (liveChecks && liveChecks.length > 0 && !flows.some((f) => f.runId === String(summary?.liveRunId ?? ""))) {
+        return job;
+      }
+      return null;
+    }
+    return job;
+  }, [selectedJob, flows]);
+
+  const runningFlowName = useMemo(() => {
+    if (!runningFlowJob) return null;
+    const title = runningFlowJob.title ?? "";
+    if (title.includes("Release")) return "registration_release";
+    return "registration_pdu_session";
+  }, [runningFlowJob]);
+
+  const EXPECTED_CHECKS_COMMON = [
+    "NGAP:InitialUEMessage",
+    "F1AP:UEContextSetupRequest",
+    "F1AP:UEContextSetupResponse",
+    "E1AP:BearerContextSetupRequest",
+    "E1AP:BearerContextSetupResponse",
+    "NGAP:PDUSessionResourceSetupRequest",
+    "F1AP:UEContextModificationRequest",
+    "NGAP:PDUSessionResourceSetupResponse",
+    "GTP-U:current_tunnel_traffic",
+    "UE:registration_accept",
+    "UE:pdu_session_established",
+    "CU-CP:pdu_session_state",
+    "CU-UP:tunnel_state",
+    "DU:ue_context_state",
+    "Open5GS:session_state"
+  ];
+  const EXPECTED_CHECKS_RELEASE = [
+    "NGAP:UEContextReleaseRequest",
+    "NGAP:UEContextReleaseCommand",
+    "E1AP:BearerContextReleaseCommand",
+    "E1AP:BearerContextReleaseComplete",
+    "F1AP:UEContextReleaseCommand",
+    "F1AP:UEContextReleaseComplete",
+    "NGAP:UEContextReleaseComplete",
+    "CU-CP:release_state",
+    "CU-UP:release_state",
+    "DU:release_state",
+    "Open5GS:release_state",
+    "UE:rrc_release"
+  ];
+
   function renderFlows() {
     return (
       <div className="space-y-6">
-        <SectionTitle title="UE Flow" description="展示最新 Registration + PDU Session 与 Registration + Inactivity Release 结果。" />
-        <div className="grid gap-4 md:grid-cols-2">
-          {flows.map((flow) => (
-            <div key={flow.flow} className="rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-ink">{flow.label}</h3>
-                <span className={`font-mono text-sm ${classForStatus(flow.result ?? flow.status)}`}>{flow.result ?? flow.status.toUpperCase()}</span>
-              </div>
-              <div className="mt-4 grid gap-3">
-                <KV label="Run ID" value={<span className="font-mono text-xs">{flow.runId ?? "无"}</span>} />
-                <KV label="Result JSON" value={pathTag(flow.resultPath)} />
-                <KV label="Timeline Events" value={<span className="font-mono">{String(flow.counts?.timeline_events ?? "-")}</span>} />
-                <KV label="Control Messages" value={<span className="font-mono">{String(flow.counts?.control_messages ?? "-")}</span>} />
-                <KV label="Logs" value={pathTag(flow.artifacts?.logs)} />
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <ActionButton label="查看结果 JSON" onClick={() => void openFile(flow.resultPath)} disabled={!flow.resultPath} />
-                <ActionButton label="查看 logs 路径" onClick={() => void openFile(flow.artifacts?.logs)} disabled={!flow.artifacts?.logs} />
-                <ActionButton label="查看历史结果" disabled={!flow.resultPath} onClick={() => void openFile(flow.resultPath)} />
-              </div>
-              <div className="mt-4 rounded-xl border border-line/70 bg-[#0b1524] p-3">
-                <div className="mb-2 text-xs text-muted">关键检查</div>
-                <div className="grid gap-2">
-                  {(flow.checks ?? []).slice(0, 6).map((check) => (
-                    <div key={String(check.name)} className="flex items-start justify-between gap-3 text-sm">
-                      <div className="text-ink">{String(check.name)}</div>
-                      <div className={Boolean(check.passed) ? "text-accent" : "text-danger"}>{Boolean(check.passed) ? "PASS" : "MISS"}</div>
-                    </div>
-                  ))}
+        <SectionTitle
+          title="UE Flow"
+          description="展示最新 Registration + PDU Session 与 Registration + Inactivity Release 结果。点击「执行测试」触发自动化流程。"
+        />
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          {flows.map((flow) => {
+            const isRunning = runningFlowName === flow.flow;
+            const live = isRunning ? (runningFlowJob?.resultSummary ?? {}) as Record<string, unknown> : {};
+            const liveRunId = isRunning ? String(live.liveRunId ?? "") : "";
+            const liveChecks = isRunning ? (live.liveChecks as Array<Record<string, unknown>> ?? []) : [];
+            const liveCounts = isRunning ? (live.liveCounts as Record<string, number> ?? {}) : {};
+            const liveTimeline = isRunning ? (live.liveTimeline as Array<Record<string, unknown>> ?? []) : [];
+
+            const hasAnyLiveData = isRunning && (liveRunId || liveChecks.length > 0 || Object.keys(liveCounts).length > 0);
+
+            const displayRunId = isRunning ? (liveRunId || null) : flow.runId;
+            const displayResultPath = isRunning ? (runningFlowJob?.resultPath ?? null) : flow.resultPath;
+            const displayCounts = isRunning ? liveCounts : (flow.counts ?? {});
+            const displayChecks = isRunning ? liveChecks : (flow.checks ?? []);
+            const displayTimeline = isRunning ? liveTimeline : (currentFlow?.timeline ?? []);
+            const isSelected = selectedFlowName === flow.flow;
+
+            function handleFlowClick() {
+              if (isSelected) {
+                setSelectedFlowName(null);
+                setDismissedJobId(null);
+                setSelectedJob(null);
+                return;
+              }
+              setSelectedFlowName(flow.flow);
+              if (!flow.runId) return;
+              const matchJob = [...jobs].reverse().find((j) => {
+                if (j.type !== "ue_flow") return false;
+                const summary = j.resultSummary as Record<string, unknown> | undefined;
+                return summary?.liveRunId === flow.runId;
+              });
+              if (matchJob) {
+                setDismissedJobId(null);
+                setSelectedJob(matchJob);
+              }
+            }
+
+            return (
+              <div
+                key={flow.flow}
+                onClick={handleFlowClick}
+                className={`min-w-0 cursor-pointer rounded-2xl border bg-panel/95 p-5 shadow-panel transition ${isSelected ? "border-accent" : "border-line hover:border-accent/50"}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-ink">{flow.label}</h3>
+                  <div className="flex items-center gap-3">
+                    {isRunning ? (
+                      <span className="flex items-center gap-1.5 font-mono text-sm text-warn">
+                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-warn" />
+                        RUNNING
+                      </span>
+                    ) : (
+                      <span className={`font-mono text-sm ${classForStatus(flow.result ?? flow.status)}`}>{flow.result ?? flow.status.toUpperCase()}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  <KV
+                    label="Run ID"
+                    value={
+                      displayRunId
+                        ? <span className="font-mono text-xs">{displayRunId}</span>
+                        : <span className="text-muted">等待中...</span>
+                    }
+                  />
+                  <KV label="Result JSON" value={displayResultPath ? pathTag(displayResultPath) : <span className="text-muted">-</span>} />
+                  <KV
+                    label="Timeline Events (含 GTP-U)"
+                    value={
+                      (displayCounts as Record<string, number>).timeline_events != null
+                        ? <span className="font-mono">{String((displayCounts as Record<string, number>).timeline_events)}</span>
+                        : <span className="text-muted">-</span>
+                    }
+                  />
+                  <KV
+                    label="Control Messages (F1AP/E1AP/NGAP)"
+                    value={
+                      (displayCounts as Record<string, number>).control_messages != null
+                        ? <span className="font-mono">{String((displayCounts as Record<string, number>).control_messages)}</span>
+                        : <span className="text-muted">-</span>
+                    }
+                  />
+                  <KV label="Logs" value={pathTag(flow.artifacts?.logs)} />
+                </div>
+
+                {isRunning && !hasAnyLiveData ? (
+                  <div className="mt-3 rounded-xl border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">
+                    {runningFlowJob?.stepName} — {runningFlowJob?.progressLabel}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <ActionButton
+                    label={isRunning ? "执行中..." : "执行测试"}
+                    onClick={() => void runFlow(flow.flow)}
+                    disabled={busy !== "" || Boolean(system?.currentMutatingJob)}
+                    tone="danger"
+                  />
+                  <ActionButton label="查看结果 JSON" onClick={() => void openFile(displayResultPath ?? undefined)} disabled={!displayResultPath} />
+                  <ActionButton label="查看 logs 路径" onClick={() => void openFile(flow.artifacts?.logs)} disabled={!flow.artifacts?.logs} />
+                </div>
+
+                <div className="mt-4 rounded-xl border border-line/70 bg-[#0b1524] p-3">
+                  <div className="mb-2 text-xs text-muted">关键检查</div>
+                  {(() => {
+                    const expectedNames = [
+                      ...EXPECTED_CHECKS_COMMON,
+                      ...(flow.flow === "registration_release" ? EXPECTED_CHECKS_RELEASE : [])
+                    ];
+                    const liveCheckMap = new Map<string, boolean>();
+                    for (const c of displayChecks as Array<Record<string, unknown>>) {
+                      liveCheckMap.set(String(c.name), Boolean(c.passed));
+                    }
+                    const hasAny = isRunning
+                      ? liveCheckMap.size > 0
+                      : displayChecks.length > 0;
+                    if (!hasAny) {
+                      return <div className="text-sm text-muted">{isRunning ? "等待测试完成..." : "暂无检查结果。"}</div>;
+                    }
+                    const rows = isRunning
+                      ? expectedNames.map((name) => ({ name, status: liveCheckMap.has(name) ? (liveCheckMap.get(name) ? "PASS" : "MISS") : "pending" as const }))
+                      : (displayChecks as Array<Record<string, unknown>>).map((c) => ({ name: String(c.name), status: Boolean(c.passed) ? "PASS" as const : "MISS" as const }));
+                    return (
+                      <div className="grid gap-2">
+                        {rows.map((row) => (
+                          <div key={row.name} className="flex items-start justify-between gap-3 text-sm">
+                            <div className="text-ink">{row.name}</div>
+                            {row.status === "pending" ? (
+                              <span className="text-muted">...</span>
+                            ) : row.status === "PASS" ? (
+                              <span className="text-accent">PASS</span>
+                            ) : (
+                              <span className="text-danger">MISS</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        {currentFlow?.timeline?.length ? (
-          <div className="rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
-            <div className="mb-4 text-lg font-semibold text-ink">时间线预览</div>
+        {(() => {
+          const activeFlowName = selectedFlowName ?? runningFlowName;
+          if (!activeFlowName) return null;
+          const tlFlow = flows.find((f) => f.flow === activeFlowName);
+          const tlLive = runningFlowJob?.resultSummary as Record<string, unknown> | undefined;
+          const tlItems = activeFlowName === runningFlowName && runningFlowJob
+            ? (tlLive?.liveTimeline as Array<Record<string, unknown>> ?? [])
+            : (tlFlow?.timeline ?? []);
+          const isReleaseFlow = activeFlowName === "registration_release";
+          const displayedItems = isReleaseFlow ? tlItems.slice(-20) : tlItems.slice(0, 15);
+          return displayedItems.length > 0 ? (
+          <div className="rounded-2xl border border-accent/40 bg-panel/95 p-5 shadow-panel">
+            <div className="mb-4 text-lg font-semibold text-ink">
+              时间线预览 — {tlFlow?.label ?? activeFlowName}
+              {isReleaseFlow && tlItems.length > 20 ? <span className="ml-2 text-sm font-normal text-muted">(显示最后 20 条)</span> : null}
+            </div>
             <div className="space-y-2">
-              {currentFlow.timeline.slice(0, 12).map((event, index) => (
+              {displayedItems.map((event, index) => (
                 <div key={`${String(event.protocol)}_${index}`} className="grid grid-cols-[0.8fr_1fr_1.2fr] gap-3 rounded-xl border border-line/70 bg-[#0b1524] px-3 py-2 text-sm">
                   <div className="font-mono text-muted">{String(event.protocol)}</div>
                   <div className="text-ink">{String(event.message)}</div>
@@ -555,7 +891,8 @@ export function App() {
               ))}
             </div>
           </div>
-        ) : null}
+          ) : null;
+        })()}
       </div>
     );
   }
@@ -648,38 +985,68 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-shell text-ink">
-      <div className="mx-auto grid min-h-screen max-w-[1800px] grid-cols-1 gap-4 p-4 xl:grid-cols-[250px_minmax(0,1fr)_420px]">
-        <aside className="rounded-[28px] border border-line bg-panel/90 p-4 shadow-panel">
-          <div className="rounded-2xl border border-line/70 bg-[#0b1524] p-4">
+      <div className={`mx-auto grid min-h-screen grid-cols-1 gap-3 p-3 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_360px] ${rightCollapsed ? "xl:!grid-cols-[220px_minmax(0,1fr)_48px]" : ""}`}>
+        <aside className="hidden rounded-2xl border border-line bg-panel/90 p-3 lg:block">
+          <div className="rounded-xl border border-line/70 bg-[#0b1524] p-3">
             <div className="text-xs uppercase tracking-[0.3em] text-muted">5G O-RAN</div>
-            <div className="mt-2 text-xl font-semibold">测试控制台</div>
-            <div className="mt-2 text-sm text-muted">实验控制台，不是宣传页。</div>
+            <div className="mt-1 text-lg font-semibold">测试控制台</div>
           </div>
-          <nav className="mt-4 space-y-2">
+          <nav className="mt-3 space-y-1">
             {navItems.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => setActiveNav(item.key)}
-                className={`w-full rounded-2xl border p-4 text-left transition ${
+                className={`w-full rounded-xl border p-3 text-left transition ${
                   activeNav === item.key ? "border-accent bg-[#11253a]" : "border-line bg-[#0b1524] hover:bg-[#122137]"
                 }`}
               >
                 <div className="text-sm font-semibold text-ink">{item.label}</div>
-                <div className="mt-1 text-xs text-muted">{item.description}</div>
+                <div className="mt-0.5 text-xs text-muted">{item.description}</div>
               </button>
             ))}
           </nav>
         </aside>
 
-        <main className="space-y-4">
-          <div className="rounded-[28px] border border-line bg-panel/90 p-4 shadow-panel">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <nav className="flex gap-2 overflow-x-auto lg:hidden">
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setActiveNav(item.key)}
+              className={`shrink-0 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                activeNav === item.key ? "border-accent bg-[#11253a] text-ink" : "border-line bg-panel/90 text-muted hover:bg-[#122137]"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <main className="min-w-0 space-y-3">
+          <div className="rounded-2xl border border-line bg-panel/90 p-3 shadow-panel">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               <SummaryCard
                 title="Baseline 状态"
-                value={system?.baseline.ready ? "READY" : "FAIL"}
-                detail={system?.baseline.summary ?? "加载中"}
-                tone={system?.baseline.ready ? "text-accent" : "text-danger"}
+                value={
+                  system?.currentMutatingJob
+                    ? "执行中"
+                    : system?.baseline.ready
+                      ? "READY"
+                      : "FAIL"
+                }
+                detail={
+                  system?.currentMutatingJob
+                    ? `正在执行: ${system.currentMutatingJob.stepName}`
+                    : system?.baseline.summary ?? "加载中"
+                }
+                tone={
+                  system?.currentMutatingJob
+                    ? "text-warn"
+                    : system?.baseline.ready
+                      ? "text-accent"
+                      : "text-danger"
+                }
               />
               <SummaryCard title="当前 Branch / Open5GS" value={system?.branch ?? "loading"} detail={system?.open5gsImage ?? "loading"} />
               <SummaryCard
@@ -689,37 +1056,70 @@ export function App() {
                 tone={system?.currentMutatingJob ? "text-warn" : "text-accent"}
               />
             </div>
-            {error ? <div className="mt-4 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div> : null}
+            {error ? <div className="mt-3 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div> : null}
           </div>
 
-          <div className="rounded-[28px] border border-line bg-panel/90 p-6 shadow-panel">
+          <div className="min-w-0 rounded-2xl border border-line bg-panel/90 p-4 shadow-panel">
             {activeNav === "overview" ? renderOverview() : null}
             {activeNav === "issues" ? renderIssues() : null}
             {activeNav === "ue-flow" ? renderFlows() : null}
             {activeNav === "protocol-replay" ? renderProtocolReplay() : null}
-            {activeNav === "reports" ? renderReports() : null}
+            {/* {activeNav === "reports" ? renderReports() : null } */}
           </div>
         </main>
 
-        <aside className="min-w-0 rounded-[28px] border border-line bg-panel/90 p-4 shadow-panel">
+        <aside className="hidden min-w-0 rounded-2xl border border-line bg-panel/90 p-3 shadow-panel xl:block">
+          {rightCollapsed ? (
+            <div className="flex flex-col items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRightCollapsed(false)}
+                className="rounded-xl border border-line bg-[#0b1524] px-2 py-2 text-xs text-muted transition hover:bg-[#122137] hover:text-ink"
+                title="展开面板"
+              >
+                ◀
+              </button>
+            </div>
+          ) : (
+          <>
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold text-ink">日志与结果</div>
               <div className="mt-1 text-xs text-muted">右侧固定显示最近任务和当前选中文件。</div>
             </div>
-            {selectedJob?.abortable ? (
-              <ActionButton
-                label="中止并恢复"
-                tone="danger"
-                onClick={() => void abortAndRestore()}
-                disabled={busy === "abort"}
-              />
-            ) : null}
+            <div className="flex items-center gap-2">
+              {selectedJob?.abortable ? (
+                <ActionButton
+                  label="中止并恢复"
+                  tone="danger"
+                  onClick={() => void abortAndRestore()}
+                  disabled={busy === "abort"}
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setRightCollapsed(true)}
+                className="rounded-xl border border-line bg-[#0b1524] px-2 py-1 text-xs text-muted transition hover:bg-[#122137] hover:text-ink"
+                title="收起面板"
+              >
+                ▶
+              </button>
+            </div>
           </div>
-          <div className="scrollbar-thin space-y-4 overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 120px)" }}>
+          <div className="scrollbar-thin space-y-3 overflow-y-auto pr-1 xl:max-h-[calc(100vh-100px)]">
+            {selectedJob ? (
             <div className="rounded-2xl border border-line bg-[#0b1524] p-4">
-              <div className="text-sm font-semibold text-ink">当前任务</div>
-              {selectedJob ? (
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-ink">当前任务</div>
+                <button
+                  type="button"
+                  onClick={() => { if (selectedJob) { setDismissedJobId(selectedJob.id); setSelectedJob(null); } }}
+                  className="rounded-lg border border-line px-1.5 py-0.5 text-xs text-muted transition hover:bg-[#122137] hover:text-ink"
+                  title="关闭"
+                >
+                  ✕
+                </button>
+              </div>
                 <div className="mt-3 space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div className="break-all font-mono text-xs text-muted">{selectedJob.id}</div>
@@ -766,10 +1166,8 @@ export function App() {
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="mt-3 text-sm text-muted">暂无任务。</div>
-              )}
             </div>
+            ) : null}
             <div className="rounded-2xl border border-line bg-[#0b1524] p-4">
               <div className="text-sm font-semibold text-ink">选中文件</div>
               {selectedFile ? (
@@ -784,6 +1182,8 @@ export function App() {
               )}
             </div>
           </div>
+          </>
+          )}
         </aside>
       </div>
     </div>

@@ -272,7 +272,8 @@ function preferredIssueOrder(caseData: Record<string, unknown>): number {
 export async function getIssueCases(): Promise<IssueCaseSummary[]> {
   const issueFiles = await fg("tests/replay/open5gs_issues/*.json", {
     cwd: repoRoot,
-    absolute: true
+    absolute: true,
+    ignore: ["**/amf_dereg_rereg_late_sdm_delete.json"]
   });
   const resultFiles = await fg("json/replay_results/stage5c6/**/*.json", {
     cwd: repoRoot,
@@ -326,6 +327,7 @@ export async function getIssueCases(): Promise<IssueCaseSummary[]> {
       protocol: String(caseData.protocol ?? ""),
       issue: String(caseData.issue ?? ""),
       fix: String(caseData.fix ?? ""),
+      description: String(caseData.description ?? ""),
       casePath: issueFile,
       resultPath: displayResult?.path,
       classification: displayResult?.classification,
@@ -472,8 +474,16 @@ export async function readWhitelistedFile(targetPath: string): Promise<FileDocum
   if (!whitelist.has(absolutePath)) {
     return null;
   }
-  return {
-    path: absolutePath,
-    content: await fs.readFile(absolutePath, "utf-8")
-  };
+  try {
+    const stat = await fs.stat(absolutePath);
+    if (stat.isDirectory()) {
+      return { path: absolutePath, content: `[目录] ${absolutePath}\n\n此路径是一个目录，无法直接预览。` };
+    }
+    return {
+      path: absolutePath,
+      content: await fs.readFile(absolutePath, "utf-8")
+    };
+  } catch {
+    return null;
+  }
 }

@@ -6,6 +6,7 @@
   "protocol": "NAS_NGAP_SBI",
   "issue": "https://github.com/open5gs/open5gs/issues/4209",
   "fix": "https://github.com/open5gs/open5gs/pull/4289",
+  "description": "AMF 在 NAS 去注册后立即重新注册的时序下，可能延迟处理 SDM_SUBSCRIPTIONS DELETE 通知，导致 UDM 中残留旧订阅。属于 SBI 信令时序竞争问题。本 testcase 先解析正常 UE 注册/去注册流程中 NAS、NGAP 与 SBI 各接口的完整信令序列，再通过 UERANSIM CLI 按最小间隔连续触发去注册与重注册，模拟极端时序下 AMF 对 SDM 订阅清理的竞态处理。当前版本下未复现。",
   "transport": {
     "kind": "ueransim_cli",
     "gnb_container": "nr_gnb",

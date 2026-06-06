@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -238,31 +239,149 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def write_result(path: Path, result: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    control = read_json(args.control)
-    gtpu = read_json(args.gtpu)
-    logs = read_logs(args.log_dir)
-    checks = validate_flow(args.flow, control, gtpu, logs)
-    timeline = build_timeline(control, gtpu)
-    passed = all(check["passed"] for check in checks)
-    result = {
+
+    result: dict = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "run_id": args.run_id,
         "flow": args.flow,
-        "result": "PASS" if passed else "FAIL",
-        "counts": {"control_messages": len(control), "gtpu_packets": len(gtpu), "timeline_events": len(timeline)},
-        "checks": checks,
-        "timeline": timeline,
+        "result": "PENDING",
+        "counts": {},
+        "checks": [],
+        "timeline": [],
         "artifacts": {
             "control": str(args.control),
             "gtpu": str(args.gtpu),
             "logs": str(args.log_dir),
         },
     }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_result(args.output, result)
+
+    print(f"Reading capture data for {args.flow}...")
+    control = read_json(args.control)
+    gtpu = read_json(args.gtpu)
+
+    result["counts"] = {"control_messages": len(control), "gtpu_packets": len(gtpu), "timeline_events": 0}
+    write_result(args.output, result)
+
+    print("Building timeline...")
+    timeline = build_timeline(control, gtpu)
+    result["timeline"] = timeline
+    result["counts"]["timeline_events"] = len(timeline)
+    write_result(args.output, result)
+
+    print("Reading component logs...")
+    logs = read_logs(args.log_dir)
+
+    names = {protocol: message_names(control, protocol) for protocol in ("F1AP", "E1AP", "NGAP")}
+    checks: list[dict] = result["checks"]
+
+    check_groups: list[tuple[list[tuple[str, bool, str]], str]] = []
+
+    group_ngap_init = [
+        ("NGAP:InitialUEMessage", has_message(names["NGAP"], "InitialUEMessage"), "captured NGAP procedure InitialUEMessage"),
+    ]
+    check_groups.append((group_ngap_init, "NGAP initial UE"))
+
+    group_f1ap_setup = []
+    for message in ["UEContextSetupRequest", "UEContextSetupResponse"]:
+        group_f1ap_setup.append((f"F1AP:{message}", has_message(names["F1AP"], message), f"captured F1AP procedure {message}"))
+    check_groups.append((group_f1ap_setup, "F1AP UE context setup"))
+
+    group_e1ap = []
+    for message in ["BearerContextSetupRequest", "BearerContextSetupResponse"]:
+        group_e1ap.append((f"E1AP:{message}", has_message(names["E1AP"], message), f"captured E1AP procedure {message}"))
+    check_groups.append((group_e1ap, "E1AP bearer setup"))
+
+    group_ngap_pdu_req = [
+        ("NGAP:PDUSessionResourceSetupRequest", has_message(names["NGAP"], "PDUSessionResourceSetupRequest"), "captured NGAP procedure PDUSessionResourceSetupRequest"),
+    ]
+    check_groups.append((group_ngap_pdu_req, "NGAP PDU Session request"))
+
+    group_f1ap_mod = [
+        ("F1AP:UEContextModificationRequest", has_message(names["F1AP"], "UEContextModificationRequest"), "captured F1AP procedure UEContextModificationRequest"),
+    ]
+    check_groups.append((group_f1ap_mod, "F1AP UE context modification"))
+
+    group_ngap_pdu_resp = [
+        ("NGAP:PDUSessionResourceSetupResponse", has_message(names["NGAP"], "PDUSessionResourceSetupResponse"), "captured NGAP procedure PDUSessionResourceSetupResponse"),
+    ]
+    check_groups.append((group_ngap_pdu_resp, "NGAP PDU Session response"))
+
+    group_gtpu = [("GTP-U:current_tunnel_traffic", bool(gtpu), f"captured {len(gtpu)} GTP-U packets")]
+    check_groups.append((group_gtpu, "GTP-U traffic"))
+
+    group_ue = [
+        ("UE:registration_accept", has_log(logs, "ue", "Handling Registration Accept"), "UE log contains Registration Accept handling"),
+        ("UE:pdu_session_established", has_log(logs, "ue", "PDU Session Establishment successful"), "UE log contains successful PDU Session establishment"),
+    ]
+    check_groups.append((group_ue, "UE state"))
+
+    group_ran = [
+        ("CU-CP:pdu_session_state", has_log(logs, "cu_cp", "BearerContextSetupResponse") and has_log(logs, "cu_cp", "UEContextModificationResponse"), "CU-CP log contains E1 bearer setup and F1 UE modification responses"),
+        ("CU-UP:tunnel_state", has_log(logs, "cu_up", "GTPU NGU Rx configured") and has_log(logs, "cu_up", "GTPU NR-U Tx configured"), "CU-UP log contains configured NG-U and NR-U tunnels"),
+        ("DU:ue_context_state", has_log(logs, "du", "UEContextModificationResponse"), "DU log contains UEContextModificationResponse"),
+    ]
+    check_groups.append((group_ran, "RAN component state"))
+
+    group_core = [
+        ("Open5GS:session_state", has_log(logs, "amf", "Number of AMF-Sessions is now 1"), "AMF log contains an active AMF session"),
+    ]
+    check_groups.append((group_core, "Core state"))
+
+    if args.flow == "registration_release":
+        group_ngap_release_req = [
+            ("NGAP:UEContextReleaseRequest", has_message(names["NGAP"], "UEContextReleaseRequest"), "captured NGAP procedure UEContextReleaseRequest"),
+        ]
+        check_groups.append((group_ngap_release_req, "NGAP release request"))
+
+        group_ngap_release_cmd = [
+            ("NGAP:UEContextReleaseCommand", has_message(names["NGAP"], "UEContextReleaseCommand"), "captured NGAP procedure UEContextReleaseCommand"),
+        ]
+        check_groups.append((group_ngap_release_cmd, "NGAP release command"))
+
+        group_e1ap_release = []
+        for message in ["BearerContextReleaseCommand", "BearerContextReleaseComplete"]:
+            group_e1ap_release.append((f"E1AP:{message}", has_message(names["E1AP"], message), f"captured E1AP procedure {message}"))
+        check_groups.append((group_e1ap_release, "E1AP release"))
+
+        group_f1ap_release = []
+        for message in ["UEContextReleaseCommand", "UEContextReleaseComplete"]:
+            group_f1ap_release.append((f"F1AP:{message}", has_message(names["F1AP"], message), f"captured F1AP procedure {message}"))
+        check_groups.append((group_f1ap_release, "F1AP release"))
+
+        group_ngap_release_complete = [
+            ("NGAP:UEContextReleaseComplete", has_message(names["NGAP"], "UEContextReleaseComplete"), "captured NGAP procedure UEContextReleaseComplete"),
+        ]
+        check_groups.append((group_ngap_release_complete, "NGAP release complete"))
+
+        group_release_state = [
+            ("CU-CP:release_state", has_log(logs, "cu_cp", "BearerContextReleaseComplete") and has_log(logs, "cu_cp", "UEContextReleaseComplete"), "CU-CP log contains completed E1 and F1 release procedures"),
+            ("CU-UP:release_state", has_log(logs, "cu_up", "Disconnecting PDU session"), "CU-UP log contains PDU session disconnect"),
+            ("DU:release_state", has_log(logs, "du", "UEContextReleaseCommand"), "DU log contains the received F1 UEContextReleaseCommand; the F1AP check independently requires Complete"),
+            ("Open5GS:release_state", has_log(logs, "amf", "UE Context Release"), "AMF log contains UE Context Release"),
+            ("UE:rrc_release", has_log(logs, "ue", "rrcRelease"), "UE log contains an RRC Release message"),
+        ]
+        check_groups.append((group_release_state, "Release state"))
+
+    for group_items, group_label in check_groups:
+        print(f"Checking {group_label}...")
+        for name, passed, evidence in group_items:
+            add_check(checks, name, passed, evidence)
+        write_result(args.output, result)
+        time.sleep(1)
+
+    passed = all(check["passed"] for check in checks)
+    result["result"] = "PASS" if passed else "FAIL"
+    result["generated_at"] = datetime.now(timezone.utc).isoformat()
+    write_result(args.output, result)
     write_markdown(args.output.with_suffix(".md"), result)
     print(f"[{result['result']}] {args.flow}")
     print(args.output)
