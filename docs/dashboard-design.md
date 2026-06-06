@@ -208,6 +208,28 @@ Output: json/flow_results/registration_release_20260605_151500/result.json
 
 ### 4.1 Layout
 
+这一页不能做成报告入口。最终演示时，用户必须能直接在页面内点击协议、消息和 testcase，
+看到“真实抓包解析出了什么”和“这些字段如何进入后续编码/回放链路”。报告只能作为辅助入口。
+
+建议将当前导航里的 `协议 / 回放` 合并页拆成三个可切换 tab：
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 协议 / 回放                                                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ [解析浏览器] [编码 Testcase] [回放验证]                                      │
+├───────────────┬───────────────────────────────────────────┬─────────────────┤
+│ 协议/消息列表   │ 选中消息或 testcase 的结构化详情             │ 证据/JSON 预览   │
+│ F1AP           │ 关键 IE / TEID / 方向 / procedure code      │ normalized JSON │
+│ E1AP           │ 编码链路状态 / hash / tshark fields         │ testcase JSON   │
+│ NGAP           │ 对端验证 L1-L4 / response / peer log        │ result JSON     │
+│ GTP-U          │                                           │                 │
+│ XnAP offline   │                                           │                 │
+└───────────────┴───────────────────────────────────────────┴─────────────────┘
+```
+
+#### Tab A: 解析浏览器
+
 左侧为协议和消息列表：
 
 - F1AP
@@ -230,6 +252,97 @@ Output: json/flow_results/registration_release_20260605_151500/result.json
 - 关键 IE 提取：PASS/FAIL
 - XnAP 离线构造/识别：PASS/FAIL
 
+#### Tab B: 编码 Testcase
+
+左侧为 testcase 列表，按协议分组：
+
+- `tests/replay/cases/*.json`
+- `tests/replay/templates/stage5c2/control/*.json`
+- `tests/replay/templates/stage5c3/xnap/*.json`
+- `tests/replay/live_cases/control/*.json`
+
+中间展示选中 testcase 的编码链路：
+
+```text
+JSON testcase
+-> mutable fields / structured IEs
+-> encoded payload
+-> generated pcap
+-> tshark decode
+-> normalized round-trip
+```
+
+必须直接显示：
+
+- `protocol`
+- `message` / `procedure_name`
+- `description`
+- `display_filter`
+- `structured_ies` 或 `mutable_ies`
+- 预期字段，例如 `procedureCode`、UE ID、TEID、QFI、SCTP PPID
+- testcase JSON 路径
+- 可打开 testcase JSON 的操作
+
+#### Tab C: 回放验证
+
+左侧为 replay / peer validation case 列表，来源包括：
+
+- `json/replay_results/stage5c4/peer_validation.json`
+- `json/replay_results/stage5c4/control_peer_validation.json`
+- `json/replay_results/stage5c4/ngap_open5gs.json`
+- GTP-U live replay result JSON
+
+中间展示验证证据链：
+
+```text
+L1 JSON generated payload
+-> L2 pcap/tshark recognized
+-> L3 sent payload hash matches
+-> L4 peer received / response captured
+```
+
+每个 case 必须直接显示：
+
+- `protocol`
+- `message`
+- `peer`
+- `expected_response`
+- `levels.L1` / `levels.L2` / `levels.L3` / `levels.L4`
+- `payload_hashes.all_equal`
+- `pcap_payload_matches_generated`
+- `protocol_recognized`
+- `peer_rx_log` / `initiator_rx_response_log` / `response_captured`
+- response message 和 transaction/procedure match 结果
+
+### 4.1.1 交互式展示硬性要求
+
+协议 / 回放页不能只显示这些内容：
+
+- 阶段报告卡片
+- “打开报告”按钮
+- 单纯 Markdown viewer
+- 静态文字说明
+
+至少要有以下交互：
+
+| 交互 | 必须看到的变化 |
+|---|---|
+| 点击协议 | 左侧消息列表过滤到该协议 |
+| 点击消息 | 中间显示 procedure/message、方向、关键 IE 或 TEID，右侧显示 normalized JSON |
+| 点击 testcase | 中间显示 JSON 输入、mutation/structured fields、预期 tshark 字段 |
+| 点击 replay case | 中间显示 L1-L4 验证链、hash 一致性、对端响应、peer log 证据 |
+| 点击 JSON / result | 右侧抽屉显示对应文件内容 |
+
+验收时应能不打开任何 Markdown 报告，仅通过这一页说明：
+
+1. 我们从真实抓包中解析出 F1AP/E1AP/NGAP/GTP-U。
+2. 我们能把关键字段结构化成 normalized JSON。
+3. 我们能从 JSON testcase 重新编码控制面和 GTP-U 报文。
+4. 生成 payload 与 pcap 读回 payload hash 一致。
+5. tshark/Wireshark 能识别生成报文。
+6. 部分 F1AP/E1AP payload 能进入真实 srsRAN 对端并获得响应。
+7. XnAP 按当前项目范围做 offline construct / parse / identify，不声称完整 Xn handover。
+
 ### 4.2 操作
 
 | 操作 | 前端行为 | 后端动作 | 输出 |
@@ -237,6 +350,9 @@ Output: json/flow_results/registration_release_20260605_151500/result.json
 | 选择协议 | 加载该协议消息列表 | 读取 `json/flow_results/**/normalized/*.json` 和相关报告 | 消息列表 |
 | 点击消息 | 展示关键 IE 和 JSON | 读取 normalized JSON | JSON viewer、IE 表 |
 | 筛选消息类型 | 更新列表 | 前端过滤或后端 query | 过滤后的消息 |
+| 选择编码 testcase | 展示 JSON 输入、可变字段、预期 tshark 字段 | 读取 `tests/replay/**.json` | testcase 详情 |
+| 选择 replay case | 展示 L1-L4、hash、对端响应和日志证据 | 读取 `json/replay_results/stage5c4/*.json` | replay 证据链 |
+| 查看 JSON | 右侧抽屉展示文件内容 | 读取白名单文件 | JSON viewer |
 | 打开报告 | 跳转报告文件 | 打开 `reports/testcase_reports/stage4-parse-report.md` 等 | Markdown 报告 |
 
 ### 4.3 对应验收项
@@ -251,6 +367,7 @@ Output: json/flow_results/registration_release_20260605_151500/result.json
 - F1AP / E1AP / NGAP / GTP-U 来自真实 baseline capture。
 - XnAP 按调整后的范围做离线 Handover Request / Acknowledge 构造和识别。
 - 每条消息不是只写在报告里，而是能在前端点开看到结构化字段。
+- 编码和回放不是“报告声称完成”，而是在页面内逐 case 显示 JSON 输入、payload/pcap/hash、tshark 和对端验证证据。
 
 ## 5. 页面三：编码回放
 
@@ -275,6 +392,42 @@ Output: json/flow_results/registration_release_20260605_151500/result.json
    - tshark protocol decode result
    - peer validation result
    - 对端日志摘要
+
+### 5.1.1 当前已有数据来源
+
+实现交互式 `协议 / 回放` 页面时，优先复用已有结构化文件，不要重新跑 live 实验作为首选。
+
+解析浏览器可读取：
+
+| 用途 | 文件 |
+|---|---|
+| baseline control-plane summary | `json/normalized/run_capture_ping_20260522_110820_summary.json` |
+| baseline F1AP/E1AP/NGAP messages | `json/normalized/run_capture_ping_20260522_110820_control_plane_packets.json` |
+| baseline GTP-U messages | `json/normalized/run_capture_ping_20260522_110820_gtpu_packets.json` |
+| flow normalized messages | `json/flow_results/**/normalized/*_control_plane_packets.json` |
+| flow normalized GTP-U | `json/flow_results/**/normalized/*_gtpu_packets.json` |
+
+编码 testcase 浏览器可读取：
+
+| 用途 | 文件 |
+|---|---|
+| F1AP/E1AP/GTP-U/XnAP replay cases | `tests/replay/cases/*.json` |
+| Stage 5C.2 extracted templates | `tests/replay/templates/stage5c2/**/*.json` |
+| Stage 5C.3 XnAP offline templates | `tests/replay/templates/stage5c3/**/*.json` |
+| Live peer JSON inputs | `tests/replay/live_cases/control/*.json` |
+
+回放验证浏览器可读取：
+
+| 用途 | 文件 |
+|---|---|
+| integrated peer validation summary | `json/replay_results/stage5c4/peer_validation.json` |
+| generated control peer validation | `json/replay_results/stage5c4/control_peer_validation.json` |
+| NGAP/Open5GS validation | `json/replay_results/stage5c4/ngap_open5gs.json` |
+| normalized replay output | `json/replay_results/normalized/**/**/*_summary.json` |
+| GTP-U live replay results | `json/flow_results/**/live_gtpu_result.json` |
+
+这些文件都属于只读证据，适合直接在 dashboard 中加载。页面默认应先展示最近或最完整的一组结果；
+如果文件不存在，则显示 `missing`，不要让用户以为协议未完成。
 
 ### 5.2 操作
 

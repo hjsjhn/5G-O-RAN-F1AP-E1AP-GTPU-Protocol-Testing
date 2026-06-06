@@ -58,6 +58,7 @@ captures/               原始抓包 / 处理后 / 生成的 pcap
 reports/                测试用例报告 / 最终报告
 tests/                  pytest 测试
 docs/                   项目文档和实施进度
+dashboard/              本地展示网页（React/Vite 前端 + Express API）
 ```
 
 ## 协作方式
@@ -209,6 +210,62 @@ commit 或 builder image 不符合固定版本时失败。
 - `captures/generated/replay/*.pcap`
 - `json/replay_results/latest.json`
 
+### 7. 启动展示网页 Dashboard
+
+Dashboard 是最终演示用的本地实验控制台，用来展示：
+
+- baseline 环境状态、Open5GS digest 和关键容器状态
+- 协议解析、编码 testcase、回放/对端验证证据
+- 两条 UE Flow 自动化结果
+- Open5GS issue-driven 安全测试结果和 live run 入口
+
+开发模式启动：
+
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
+启动后访问：
+
+```text
+http://127.0.0.1:4173
+```
+
+端口说明：
+
+| 端口 | 作用 |
+|------|------|
+| `4173` | Vite 前端页面 |
+| `4174` | Express API，前端会自动代理 `/api` |
+
+如果只想跑构建后的版本：
+
+```bash
+cd dashboard
+npm install
+npm run build
+npm start
+```
+
+构建版由 Express 直接服务静态前端，默认访问：
+
+```text
+http://127.0.0.1:4174
+```
+
+注意：
+
+- 查看历史报告、JSON、UE Flow 结果、issue 结果时，不一定需要重新运行 live 实验。
+- 页面里的 `恢复 baseline`、`执行测试`、`Live run` 会操作 Docker 环境；运行前建议先执行：
+
+  ```bash
+  ./scripts/env/check_core_ready.sh
+  ```
+
+- Open5GS issue live run 可能会故意触发 NF crash，dashboard 会走恢复流程，但演示前最好先确认 baseline 是 `READY`。
+
 ## 协议接口
 
 | 接口 | 协议 | 协议栈 | 说明 |
@@ -245,13 +302,15 @@ f1u_net  172.18.10.0/24  → CU-UP(.2) ↔ DU(.3) 用户面
 - srsUE over ZMQ 注册与 PDU Session
 - 容器内 tcpdump 完整帧抓包
 - F1AP / NGAP / E1AP / GTP-U 解析为结构化 JSON
+- ≥5 类控制面消息 + GTP-U 的 JSON/pcap/tshark 编码验证
+- F1AP/E1AP/GTP-U 对端验证与两条完整 UE Flow 自动化测试
+- Open5GS issue-driven testcase 与 dashboard MVP 展示网页
 
 待完成：
 
 - F1 Handover 实验线：同 CU-CP 下双 cell / F1 handover 抓包和报告
 - N2 Handover 实验线：两套 gNB/CU-DU 接入同一 Open5GS 的 AMF-mediated handover 调研和抓包
-- 编码/回放/自动测例主线：JSON/template → pcap、完整 UE flow 测例、Open5GS issue reproduction
-- 前端 dashboard：左侧信令解析/JSON，右侧实时日志/testcase 输出
+- Dashboard 展示细化：协议/回放页需要从报告入口升级为可点击的消息、testcase 和 replay 证据链展示
 
 ## 实施进度
 
