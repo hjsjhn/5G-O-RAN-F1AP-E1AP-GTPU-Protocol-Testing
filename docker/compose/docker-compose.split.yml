@@ -18,7 +18,7 @@ services:
       - cu_cp_pcap:/tmp
     depends_on:
       amf:
-        condition: service_started
+        condition: service_healthy
     configs:
       - cu_cp_config.yml
       - cu_cp_compose_config.yml

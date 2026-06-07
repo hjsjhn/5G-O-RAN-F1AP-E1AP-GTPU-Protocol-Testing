@@ -195,6 +195,11 @@ services:
     expose:
       - "38412/sctp"
       - "7777/tcp"
+    healthcheck:
+      test: [ "CMD-SHELL", "ss -l -H -A sctp 'sport = :38412' | grep -q ." ]
+      interval: 3s
+      timeout: 2s
+      retries: 30
     networks:
       5gc:
         ipv4_address: ${AMF_IP}
