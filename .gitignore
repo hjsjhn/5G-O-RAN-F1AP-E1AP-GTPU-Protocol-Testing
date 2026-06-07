@@ -35,8 +35,7 @@ dashboard/dist/
 # Docker
 docker/compose/.env
 
-# Cloned third-party repos
-docker/open5gs-5gc/
+# Cloned third-party repos (now managed as git submodules)
 
 # OS
 .DS_Store

@@ -39,8 +39,8 @@ fi
 
 SRSRAN_SRC="$PROJECT_ROOT/docker/srsran-src"
 if [[ ! -f "$SRSRAN_SRC/CMakeLists.txt" ]]; then
-  echo "Initializing srsran-src submodule..."
-  git -C "$PROJECT_ROOT" submodule update --init --recursive docker/srsran-src
+  echo "Initializing submodules..."
+  git -C "$PROJECT_ROOT" submodule update --init --recursive
 fi
 
 echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
