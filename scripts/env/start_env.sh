@@ -39,6 +39,10 @@ fi
 
 SRSRAN_SRC="$PROJECT_ROOT/docker/srsran-src"
 if [[ ! -f "$SRSRAN_SRC/CMakeLists.txt" ]]; then
+  if [[ -d "$SRSRAN_SRC" ]]; then
+    echo "Removing incomplete srsran-src directory..."
+    rm -rf "$SRSRAN_SRC"
+  fi
   echo "Cloning srsRAN_Project source into $SRSRAN_SRC..."
   git clone --depth 1 https://github.com/srsran/srsRAN_Project.git "$SRSRAN_SRC"
 fi
