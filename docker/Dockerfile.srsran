@@ -9,12 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY srsran-src /opt/srsRAN_Project
 
-RUN if [ ! -f /opt/srsRAN_Project/CMakeLists.txt ]; then \
-      echo "srsran-src is empty, cloning from GitHub..." && \
-      rm -rf /opt/srsRAN_Project && \
-      git clone --depth 1 https://github.com/srsran/srsRAN_Project.git /opt/srsRAN_Project; \
-    fi
-
 WORKDIR /opt/srsRAN_Project/build
 RUN cmake .. -DENABLE_UHD=OFF -DENABLE_ZEROMQ=ON -DENABLE_CSV=OFF \
     -DENABLE_EXAMPLES=OFF -DENABLE_TESTS=OFF && \
