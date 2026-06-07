@@ -48,7 +48,7 @@ if [[ ! -f "$SRSRAN_SRC/CMakeLists.txt" ]]; then
 fi
 
 echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
-docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
+docker build --no-cache -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
 
 export SRSRAN_IMAGE_TAG="local-${ARCH}"
 
