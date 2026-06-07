@@ -5,7 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_DIR="$PROJECT_ROOT/docker/compose"
-SRSRAN_IMAGE="${SRSRAN_IMAGE:-srsran/gnb:local-arm64}"
+ARCH="$(uname -m)"
+SRSRAN_IMAGE="${SRSRAN_IMAGE:-srsran/gnb:local-${ARCH}}"
 
 ensure_docker_ready() {
   if docker info >/dev/null 2>&1; then
@@ -40,6 +41,8 @@ if ! docker image inspect "$SRSRAN_IMAGE" >/dev/null 2>&1; then
   echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
   docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
 fi
+
+export SRSRAN_IMAGE_TAG="local-${ARCH}"
 
 echo "Starting O-RAN test environment (CU-DU split + Open5GS)..."
 
