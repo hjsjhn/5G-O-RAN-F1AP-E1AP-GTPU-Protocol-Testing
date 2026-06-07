@@ -1,0 +1,3 @@
+[submodule "docker/srsran-src"]
+	path = docker/srsran-src
+	url = https://github.com/srsran/srsRAN_Project.git

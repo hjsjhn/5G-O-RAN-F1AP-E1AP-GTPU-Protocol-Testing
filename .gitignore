@@ -40,7 +40,6 @@ docker/open5gs-5gc/
 
 # OS
 .DS_Store
-docker/srsran-src/
 
 # Captures and logs (raw data, too large for GitHub)
 captures/raw/*/*.log
