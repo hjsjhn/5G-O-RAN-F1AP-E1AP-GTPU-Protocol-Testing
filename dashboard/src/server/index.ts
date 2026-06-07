@@ -4,6 +4,9 @@ import {
   getIssueCases,
   getLatestFlows,
   getProtocolReplayCards,
+  getProtocolMessages,
+  getEncodingTestcases,
+  getReplayValidationResults,
   getReports,
   getSystemStatus,
   readMarkdownBySlug,
@@ -122,6 +125,18 @@ app.post("/api/flows/:flow/run", async (request, response) => {
 
 app.get("/api/protocol-replay", (_request, response) => {
   response.json(getProtocolReplayCards());
+});
+
+app.get("/api/protocol/messages", async (_request, response) => {
+  response.json(await getProtocolMessages());
+});
+
+app.get("/api/encoding/testcases", async (_request, response) => {
+  response.json(await getEncodingTestcases());
+});
+
+app.get("/api/replay/validation", async (_request, response) => {
+  response.json(await getReplayValidationResults());
 });
 
 app.get("/api/reports", async (_request, response) => {

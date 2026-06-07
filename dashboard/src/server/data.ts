@@ -4,12 +4,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   ContainerState,
+  EncodingTestcase,
   FileDocument,
   FlowSummary,
   IssueCaseSummary,
   IssueRunInfo,
   MarkdownDocument,
+  ProtocolMessage,
+  ProtocolMessagesResult,
   ProtocolReplayCard,
+  ReplayValidationCase,
+  ReplayValidationResult,
   ReportItem,
   SystemStatus
 } from "../shared/types.js";
@@ -408,6 +413,217 @@ export function getProtocolReplayCards(): ProtocolReplayCard[] {
   }));
 }
 
+export async function getProtocolMessages(): Promise<ProtocolMessagesResult> {
+  const messages: ProtocolMessage[] = [];
+  const protocolSet = new Set<string>();
+  const sourceSet = new Map<string, string>();
+
+  async function loadNormalizedFiles(
+    pattern: string,
+    sourceId: string,
+    sourceLabel: string
+  ): Promise<void> {
+    const files = await fg(pattern, { cwd: repoRoot, absolute: true });
+    if (files.length === 0) return;
+    sourceSet.set(sourceId, sourceLabel);
+    for (const file of files) {
+      const data = await readJson<Record<string, unknown>[]>(file);
+      if (!Array.isArray(data)) continue;
+      for (const pkt of data) {
+        const protocol = String(pkt.protocol ?? "");
+        if (!protocol) continue;
+        protocolSet.add(protocol);
+        const proc = pkt.procedure as Record<string, unknown> | undefined;
+        const ip = pkt.ip as Record<string, string> | undefined;
+        const sctp = pkt.sctp as Record<string, number> | undefined;
+        const gtp = pkt.gtp as Record<string, unknown> | undefined;
+        messages.push({
+          source: sourceId,
+          frame: Number(pkt.frame ?? 0),
+          protocol,
+          info: String(pkt.info ?? ""),
+          procedure: {
+            code: Number(proc?.code ?? 0),
+            name: String(proc?.name ?? "")
+          },
+          ip: { src: ip?.src ?? "", dst: ip?.dst ?? "" },
+          sctp: sctp ? { srcport: sctp.srcport ?? 0, dstport: sctp.dstport ?? 0 } : undefined,
+          gtp: gtp ? Object.fromEntries(Object.entries(gtp).filter(([, v]) => v != null)) : undefined,
+          ies: (pkt.ies as Record<string, unknown>) ?? {},
+          time_relative: Number(pkt.time_relative ?? 0)
+        });
+      }
+    }
+  }
+
+  await loadNormalizedFiles(
+    "json/normalized/*_control_plane_packets.json",
+    "baseline",
+    "Baseline 抓包"
+  );
+  await loadNormalizedFiles(
+    "json/normalized/*_gtpu_packets.json",
+    "baseline_gtpu",
+    "Baseline GTP-U"
+  );
+
+  const flowDirs = await fg("json/flow_results/*/normalized", {
+    cwd: repoRoot,
+    absolute: true,
+    onlyDirectories: true
+  });
+  flowDirs.sort();
+  const latestFlowDir = flowDirs.at(-1);
+  if (latestFlowDir) {
+    const flowName = path.basename(path.dirname(latestFlowDir));
+    const label = flowName.includes("release")
+      ? "Registration + Release (最新)"
+      : "Registration + PDU Session (最新)";
+    await loadNormalizedFiles(
+      path.join(latestFlowDir, "*_control_plane_packets.json"),
+      flowName,
+      label
+    );
+    await loadNormalizedFiles(
+      path.join(latestFlowDir, "*_gtpu_packets.json"),
+      `${flowName}_gtpu`,
+      `${label} GTP-U`
+    );
+  }
+
+  const protocolOrder = ["F1AP", "E1AP", "NGAP", "GTP-U", "XnAP"];
+  const protocols = protocolOrder.filter((p) => protocolSet.has(p));
+  for (const p of protocolSet) {
+    if (!protocols.includes(p)) protocols.push(p);
+  }
+
+  return {
+    protocols,
+    sources: [...sourceSet.entries()].map(([id, label]) => ({ id, label })),
+    messages
+  };
+}
+
+export async function getEncodingTestcases(): Promise<EncodingTestcase[]> {
+  const cases: EncodingTestcase[] = [];
+  const patterns: Array<{ glob: string; source: string }> = [
+    { glob: "tests/replay/cases/*.json", source: "cases" },
+    { glob: "tests/replay/templates/stage5c2/control/*.json", source: "templates_5c2" },
+    { glob: "tests/replay/templates/stage5c3/xnap/*.json", source: "templates_5c3" },
+    { glob: "tests/replay/live_cases/control/*.json", source: "live_cases" }
+  ];
+
+  for (const { glob: pattern, source } of patterns) {
+    const files = await fg(pattern, { cwd: repoRoot, absolute: true });
+    for (const file of files) {
+      const data = await readJson<Record<string, unknown>>(file);
+      if (!data || typeof data.id !== "string") continue;
+      cases.push({
+        id: String(data.id),
+        protocol: String(data.protocol ?? ""),
+        description: String(data.description ?? ""),
+        message: data.message ? String(data.message) : undefined,
+        path: file,
+        structuredIes: data.structured_ies as Record<string, unknown> | undefined,
+        mutation: data.mutation as Record<string, unknown> | undefined,
+        expect: data.expect as Record<string, unknown> | undefined,
+        source
+      });
+    }
+  }
+
+  return cases;
+}
+
+export async function getReplayValidationResults(): Promise<ReplayValidationResult> {
+  const controlCases: ReplayValidationCase[] = [];
+
+  const pvData = await readJson<Record<string, unknown>>(
+    resolveRepoPath("json/replay_results/stage5c4/peer_validation.json")
+  );
+  if (pvData) {
+    const pvControl = pvData.control_cases as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(pvControl)) {
+      for (const c of pvControl) {
+        controlCases.push({
+          protocol: String(c.protocol ?? ""),
+          message: String(c.message ?? ""),
+          peer: String(c.peer ?? ""),
+          levels: (c.levels as Record<string, boolean>) ?? {},
+          evidence: c.evidence as Record<string, boolean> | undefined,
+          source: "peer_validation"
+        });
+      }
+    }
+
+    const pvGtpu = pvData.gtpu as Record<string, unknown> | undefined;
+    if (pvGtpu) {
+      controlCases.push({
+        protocol: "GTP-U",
+        message: "Live GTP-U Replay",
+        peer: "UPF + CU-UP",
+        levels: (pvGtpu.levels as Record<string, boolean>) ?? {},
+        source: "peer_validation",
+        payloadHashes: pvGtpu.session as Record<string, unknown> | undefined
+      });
+    }
+  }
+
+  const cpvData = await readJson<Record<string, unknown>>(
+    resolveRepoPath("json/replay_results/stage5c4/control_peer_validation.json")
+  );
+  if (cpvData) {
+    const cpvCases = cpvData.cases as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(cpvCases)) {
+      for (const c of cpvCases) {
+        controlCases.push({
+          protocol: String(c.generator_output
+            ? (c.generator_output as Record<string, unknown>).protocol ?? ""
+            : ""),
+          message: String(
+            c.message
+              ?? (c.generator_output as Record<string, unknown> | undefined)?.message
+              ?? ""
+          ),
+          peer: String(
+            c.peer
+              ?? (c.expected_response as Record<string, unknown> | undefined)?.outcomes
+              ?? "srsRAN peer"
+          ),
+          levels: (c.levels as Record<string, boolean>) ?? {},
+          payloadHashes: c.payload_hashes as Record<string, unknown> | undefined,
+          l2Tshark: c.l2_tshark as Record<string, unknown> | undefined,
+          caseId: String(c.case_id ?? ""),
+          source: "control_peer_validation"
+        });
+      }
+    }
+  }
+
+  let ngapCase: Record<string, unknown> | undefined;
+  const ngapData = await readJson<Record<string, unknown>>(
+    resolveRepoPath("json/replay_results/stage5c4/ngap_open5gs.json")
+  );
+  if (ngapData) {
+    ngapCase = ngapData;
+    controlCases.push({
+      protocol: String(ngapData.protocol ?? "NGAP"),
+      message: "NGAP TAC Mutation",
+      peer: String((ngapData.peer as string | undefined) ?? "Open5GS AMF"),
+      levels: (ngapData.replay_levels as Record<string, boolean>) ?? {},
+      caseId: String(ngapData.case_id ?? ""),
+      source: "ngap_open5gs"
+    });
+  }
+
+  return {
+    controlCases,
+    gtpu: pvData?.gtpu as Record<string, unknown> | undefined,
+    ngapCase,
+    generatedAt: String(pvData?.generated_at ?? cpvData?.generated_at ?? "")
+  };
+}
+
 export async function getReports(): Promise<ReportItem[]> {
   const items: ReportItem[] = [];
   for (const entry of reportRegistry) {
@@ -468,6 +684,22 @@ export async function readWhitelistedFile(targetPath: string): Promise<FileDocum
     for (const artifact of Object.values(flow.artifacts ?? {})) {
       whitelist.add(path.resolve(repoRoot, artifact));
     }
+  }
+
+  for (const tc of await getEncodingTestcases()) {
+    whitelist.add(tc.path);
+  }
+
+  const replayResultsDir = resolveRepoPath("json/replay_results/stage5c4");
+  const replayFiles = await fg("*.json", { cwd: replayResultsDir, absolute: true });
+  for (const f of replayFiles) {
+    whitelist.add(f);
+  }
+
+  const normalizedDir = resolveRepoPath("json/normalized");
+  const normalizedFiles = await fg("**/*.json", { cwd: normalizedDir, absolute: true });
+  for (const f of normalizedFiles) {
+    whitelist.add(f);
   }
 
   const absolutePath = path.resolve(targetPath);

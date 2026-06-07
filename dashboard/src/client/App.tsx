@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type {
+  EncodingTestcase,
   FileDocument,
   FlowSummary,
   IssueCaseSummary,
   JobSummary,
   MarkdownDocument,
   NavKey,
+  ProtocolMessage,
+  ProtocolMessagesResult,
   ProtocolReplayCard,
+  ReplayValidationCase,
+  ReplayValidationResult,
   ReportItem,
   SystemStatus
 } from "../shared/types";
@@ -183,6 +188,14 @@ export function App() {
   const [selectedFile, setSelectedFile] = useState<FileDocument | null>(null);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState<string>("");
+  const [protoTab, setProtoTab] = useState<"parse" | "encoding" | "replay">("parse");
+  const [protoMessages, setProtoMessages] = useState<ProtocolMessagesResult | null>(null);
+  const [selectedProtocol, setSelectedProtocol] = useState<string>("");
+  const [selectedMessageIndex, setSelectedMessageIndex] = useState<number>(-1);
+  const [encodingCases, setEncodingCases] = useState<EncodingTestcase[]>([]);
+  const [selectedEncodingId, setSelectedEncodingId] = useState<string>("");
+  const [replayResults, setReplayResults] = useState<ReplayValidationResult | null>(null);
+  const [selectedReplayIndex, setSelectedReplayIndex] = useState<number>(-1);
 
   const currentIssue = useMemo(
     () => selectedIssueId ? (issues.find((item) => item.id === selectedIssueId) ?? null) : (issues[0] ?? null),
@@ -260,6 +273,32 @@ export function App() {
       void loadReport(selectedReportSlug);
     }
   }, [activeNav, selectedReportSlug]);
+
+  useEffect(() => {
+    if (activeNav !== "protocol-replay") return;
+    if (protoMessages && encodingCases.length > 0 && replayResults) return;
+    async function loadProtocolData() {
+      try {
+        const [msgData, encData, repData] = await Promise.all([
+          getJson<ProtocolMessagesResult>("/api/protocol/messages"),
+          getJson<EncodingTestcase[]>("/api/encoding/testcases"),
+          getJson<ReplayValidationResult>("/api/replay/validation")
+        ]);
+        setProtoMessages(msgData);
+        setEncodingCases(encData);
+        setReplayResults(repData);
+        if (msgData.protocols.length > 0 && !selectedProtocol) {
+          setSelectedProtocol(msgData.protocols[0]);
+        }
+        if (encData.length > 0 && !selectedEncodingId) {
+          setSelectedEncodingId(`${encData[0].id}_${encData[0].source}`);
+        }
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "协议数据加载失败");
+      }
+    }
+    void loadProtocolData();
+  }, [activeNav]);
 
   async function runRestore() {
     setBusy("restore");
@@ -897,26 +936,535 @@ export function App() {
     );
   }
 
+  const filteredProtoMessages = useMemo(() => {
+    if (!protoMessages) return [];
+    return protoMessages.messages.filter((m) => m.protocol === selectedProtocol);
+  }, [protoMessages, selectedProtocol]);
+
+  const currentEncoding = useMemo(
+    () => encodingCases.find((c) => `${c.id}_${c.source}` === selectedEncodingId) ?? null,
+    [encodingCases, selectedEncodingId]
+  );
+
+  const encodingByProtocol = useMemo(() => {
+    const groups = new Map<string, EncodingTestcase[]>();
+    for (const tc of encodingCases) {
+      const list = groups.get(tc.protocol) ?? [];
+      list.push(tc);
+      groups.set(tc.protocol, list);
+    }
+    return groups;
+  }, [encodingCases]);
+
   function renderProtocolReplay() {
+    const filteredMessages = filteredProtoMessages;
+
+    const selectedMessage = selectedMessageIndex >= 0 ? filteredMessages[selectedMessageIndex] ?? null : null;
+
+    const selectedReplayCase = selectedReplayIndex >= 0 ? replayResults?.controlCases[selectedReplayIndex] ?? null : null;
+
+    const tabClass = (tab: "parse" | "encoding" | "replay") =>
+      `px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2 ${
+        protoTab === tab
+          ? "border-accent text-accent bg-[#11253a]"
+          : "border-transparent text-muted hover:text-ink hover:bg-[#0b1524]"
+      }`;
+
     return (
-      <div className="space-y-6">
-        <SectionTitle title="协议 / 回放" description="将阶段报告映射到课程验收要求。" />
-        <div className="grid gap-4 md:grid-cols-2">
-          {cards.map((card) => (
-            <div key={card.id} className="rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
-              <div className="text-sm uppercase tracking-[0.2em] text-muted">{card.requirement}</div>
-              <h3 className="mt-3 text-lg font-semibold text-ink">{card.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted">{card.description}</p>
-              <div className="mt-4 rounded-xl border border-line/70 bg-[#0b1524] p-3 text-xs text-muted">
-                {card.path}
-              </div>
-              <div className="mt-4 flex gap-2">
-                <ActionButton label="打开报告" onClick={() => { setActiveNav("reports"); const slug = reports.find((item) => item.path === card.path)?.slug ?? "progress"; void loadReport(slug); }} />
-                <ActionButton label="查看原文" onClick={() => void openFile(card.path)} />
-              </div>
-            </div>
-          ))}
+      <div className="space-y-4">
+        <SectionTitle
+          title="协议 / 回放"
+          description="交互式浏览解析结果、编码 testcase 和回放验证证据。"
+        />
+        <div className="flex gap-1 border-b border-line">
+          <button type="button" onClick={() => setProtoTab("parse")} className={tabClass("parse")}>解析浏览器</button>
+          <button type="button" onClick={() => setProtoTab("encoding")} className={tabClass("encoding")}>编码 Testcase</button>
+          <button type="button" onClick={() => setProtoTab("replay")} className={tabClass("replay")}>回放验证</button>
         </div>
+
+        {protoTab === "parse" ? (
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <div className="scrollbar-thin max-h-[70vh] space-y-2 overflow-y-auto">
+              {protoMessages ? (
+                protoMessages.protocols.map((proto) => {
+                  const count = protoMessages.messages.filter((m) => m.protocol === proto).length;
+                  const isExpanded = selectedProtocol === proto;
+                  const protoMsgs = isExpanded ? filteredMessages : [];
+                  return (
+                    <div key={proto}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProtocol(proto);
+                          setSelectedMessageIndex(-1);
+                        }}
+                        className={`w-full rounded-xl border p-3 text-left transition ${
+                          isExpanded ? "border-accent bg-[#11253a]" : "border-line bg-panel/90 hover:bg-[#132136]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-sm font-semibold text-ink">{proto}</span>
+                          <span className="text-xs text-muted">{count}</span>
+                        </div>
+                      </button>
+                      {isExpanded ? (
+                        <div className="mt-1 space-y-1 pl-2">
+                          {protoMsgs.map((msg, idx) => {
+                            const name = msg.procedure.name || msg.info.split(",")[0].replace(/SACK\s*\(.*?\)\s*,?\s*/g, "").trim();
+                            return (
+                              <button
+                                key={`${msg.frame}_${idx}`}
+                                type="button"
+                                onClick={() => setSelectedMessageIndex(idx)}
+                                className={`w-full rounded-lg border px-2.5 py-1.5 text-left text-xs transition ${
+                                  selectedMessageIndex === idx
+                                    ? "border-accent/50 bg-accent/10 text-ink"
+                                    : "border-line/50 bg-[#0b1524] text-muted hover:text-ink"
+                                }`}
+                              >
+                                <span className="font-mono">{msg.frame}</span>
+                                <span className="mx-1 text-muted/50">|</span>
+                                <span className="truncate">{name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-sm text-muted">加载中...</div>
+              )}
+            </div>
+
+            <div className="min-w-0 rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
+              {selectedMessage ? (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-ink">
+                      {selectedMessage.procedure.name || selectedMessage.info.split(",")[0].replace(/SACK\s*\(.*?\)\s*,?\s*/g, "").trim()}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+                      <span className="rounded-full border border-line px-2 py-1 font-mono">{selectedMessage.protocol}</span>
+                      <span className="rounded-full border border-line px-2 py-1 font-mono">
+                        Procedure Code: {selectedMessage.procedure.code}
+                      </span>
+                      <span className="rounded-full border border-line px-2 py-1 font-mono">
+                        Frame #{selectedMessage.frame}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <KV
+                      label="方向"
+                      value={
+                        <span className="font-mono text-xs">
+                          {selectedMessage.ip.src}{selectedMessage.sctp ? `:${selectedMessage.sctp.srcport}` : ""} → {selectedMessage.ip.dst}{selectedMessage.sctp ? `:${selectedMessage.sctp.dstport}` : ""}
+                        </span>
+                      }
+                    />
+                    <KV label="来源" value={<span className="text-xs">{protoMessages?.sources.find((s) => s.id === selectedMessage.source)?.label ?? selectedMessage.source}</span>} />
+                  </div>
+                  {selectedMessage.protocol === "GTP-U" && selectedMessage.gtp ? (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                      <div className="mb-2 text-xs text-muted">GTP-U / NRUP 信息</div>
+                      <div className="grid gap-2 text-xs">
+                        {Object.entries(selectedMessage.gtp).map(([k, v]) => (
+                          <div key={k} className="flex gap-2">
+                            <span className="text-muted">{k}:</span>
+                            <span className="font-mono text-[#ced9e5]">{String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {Object.keys(selectedMessage.ies).length > 0 ? (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                      <div className="mb-2 text-xs text-muted">关键 IE</div>
+                      <div className="space-y-2">
+                        {Object.entries(selectedMessage.ies).map(([k, v]) => (
+                          <div key={k} className="flex items-start justify-between gap-3 text-sm">
+                            <span className="text-muted">{k}</span>
+                            <span className="font-mono text-xs text-[#ced9e5] break-all text-right">
+                              {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3 text-sm text-muted">
+                      此消息无结构化 IE 数据。
+                    </div>
+                  )}
+                  <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                    <div className="mb-2 text-xs text-muted">完整 Info</div>
+                    <div className="text-sm text-[#ced9e5] break-all">{selectedMessage.info}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <ActionButton
+                      label="查看原始 JSON"
+                      onClick={() => {
+                        setSelectedFile({ path: `protocol://${selectedMessage.protocol}/${selectedMessage.frame}`, content: JSON.stringify(selectedMessage, null, 2) });
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted">选择左侧协议和消息查看详情。</div>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {protoTab === "encoding" ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-3 rounded-xl border border-line/70 bg-[#0b1524] px-4 py-2.5 text-xs text-muted">
+              <span><span className="font-semibold text-ink">case</span> — 从真实抓包提取报文，替换部分字段（如 UE ID）后重新编码成 pcap，由 Wireshark 离线验证合法性，证明编码可逆</span>
+              <span className="text-line">|</span>
+              <span><span className="font-semibold text-ink">template</span> — 从真实抓包直接提取的原始报文，未做任何修改</span>
+              <span className="text-line">|</span>
+              <span><span className="font-semibold text-ink">live</span> — 用 JSON 参数动态构造报文，在线发送到运行中的 RAN 网元（CU-CP / DU / CU-UP），验证真实组件能否正确处理</span>
+            </div>
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <div className="scrollbar-thin max-h-[70vh] space-y-3 overflow-y-auto">
+              {[...encodingByProtocol.entries()].map(([proto, cases]) => (
+                <div key={proto}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">{proto} ({cases.length})</div>
+                  <div className="space-y-1">
+                    {cases.map((tc) => (
+                      <button
+                        key={tc.id}
+                        type="button"
+                        onClick={() => setSelectedEncodingId(`${tc.id}_${tc.source}`)}
+                        className={`w-full rounded-xl border p-3 text-left transition ${
+                          selectedEncodingId === `${tc.id}_${tc.source}` ? "border-accent bg-[#11253a]" : "border-line bg-panel/90 hover:bg-[#132136]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm text-ink">{tc.id}</span>
+                          <span className="shrink-0 rounded-full border border-line px-1.5 py-0.5 text-[10px] text-muted">
+                            {tc.source === "cases" ? "case" : tc.source === "live_cases" ? "live" : "template"}
+                          </span>
+                        </div>
+                        {tc.message ? <div className="mt-1 text-xs text-muted">{tc.message}</div> : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {encodingCases.length === 0 ? <div className="text-sm text-muted">加载中...</div> : null}
+            </div>
+
+            <div className="min-w-0 rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
+              {currentEncoding ? (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-ink">{currentEncoding.id}</h3>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+                      <span className="rounded-full border border-line px-2 py-1 font-mono">{currentEncoding.protocol}</span>
+                      {currentEncoding.message ? (
+                        <span className="rounded-full border border-line px-2 py-1 font-mono">{currentEncoding.message}</span>
+                      ) : null}
+                      <span className="rounded-full border border-line px-2 py-1">
+                        {currentEncoding.source === "cases" ? "Replay Case" : currentEncoding.source === "live_cases" ? "Live Peer" : "Template"}
+                      </span>
+                    </div>
+                  </div>
+                  {currentEncoding.description ? (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3 text-sm leading-6 text-[#ced9e5]">
+                      {currentEncoding.description}
+                    </div>
+                  ) : null}
+                  {currentEncoding.structuredIes && Object.keys(currentEncoding.structuredIes).length > 0 ? (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                      <div className="mb-2 text-xs text-muted">结构化 IE</div>
+                      <div className="space-y-2">
+                        {Object.entries(currentEncoding.structuredIes).map(([k, v]) => (
+                          <div key={k} className="flex items-start justify-between gap-3 text-sm">
+                            <span className="text-muted">{k}</span>
+                            <span className="font-mono text-xs text-[#ced9e5] break-all text-right">
+                              {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {currentEncoding.mutation && Object.keys(currentEncoding.mutation).length > 0 ? (
+                    <div className="rounded-xl border border-warn/30 bg-warn/5 px-4 py-3">
+                      <div className="mb-2 text-xs text-warn">Mutation</div>
+                      <div className="space-y-2">
+                        {Object.entries(currentEncoding.mutation).map(([k, v]) => (
+                          <div key={k} className="flex items-start justify-between gap-3 text-sm">
+                            <span className="text-muted">{k}</span>
+                            <span className="font-mono text-xs text-[#ced9e5] break-all text-right">
+                              {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {currentEncoding.expect ? (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                      <div className="mb-2 text-xs text-muted">验证预期</div>
+                      {(() => {
+                        const exp = currentEncoding.expect as Record<string, unknown>;
+                        const df = exp.display_filter as string | undefined;
+                        const fields = exp.fields as Record<string, string> | undefined;
+                        return (
+                          <div className="space-y-2">
+                            {df ? (
+                              <div className="flex items-start justify-between gap-3 text-sm">
+                                <span className="text-muted">display_filter</span>
+                                <span className="font-mono text-xs text-[#ced9e5] break-all text-right">{df}</span>
+                              </div>
+                            ) : null}
+                            {fields ? Object.entries(fields).map(([k, v]) => (
+                              <div key={k} className="flex items-start justify-between gap-3 text-sm">
+                                <span className="text-muted">{k}</span>
+                                <span className="font-mono text-xs text-[#ced9e5] break-all text-right">{String(v)}</span>
+                              </div>
+                            )) : null}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <ActionButton label="查看完整 JSON" onClick={() => void openFile(currentEncoding.path)} />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted">选择左侧 testcase 查看详情。</div>
+              )}
+            </div>
+          </div>
+          </div>
+        ) : null}
+
+        {protoTab === "replay" ? (
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <div className="scrollbar-thin max-h-[70vh] space-y-2 overflow-y-auto">
+              {replayResults ? (
+                replayResults.controlCases.map((c, idx) => {
+                  const levelKeys = Object.keys(c.levels).sort();
+                  const allPass = levelKeys.length > 0 && levelKeys.every((k) => c.levels[k]);
+                  const anyFail = levelKeys.some((k) => !c.levels[k]);
+                  return (
+                    <button
+                      key={`${c.source}_${idx}`}
+                      type="button"
+                      onClick={() => setSelectedReplayIndex(idx)}
+                      className={`w-full rounded-xl border p-3 text-left transition ${
+                        selectedReplayIndex === idx ? "border-accent bg-[#11253a]" : "border-line bg-panel/90 hover:bg-[#132136]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm text-ink">{c.protocol} / {c.message}</span>
+                        <span className={`shrink-0 text-xs font-semibold ${allPass ? "text-accent" : anyFail ? "text-danger" : "text-muted"}`}>
+                          {allPass ? "ALL PASS" : anyFail ? "PARTIAL" : "-"}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted">Peer: {c.peer}</div>
+                      <div className="mt-1 flex gap-1">
+                        {levelKeys.map((lk) => (
+                          <span
+                            key={lk}
+                            className={`rounded px-1 py-0.5 text-[10px] font-mono ${
+                              c.levels[lk] ? "bg-accent/20 text-accent" : "bg-danger/20 text-danger"
+                            }`}
+                          >
+                            {lk}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="text-sm text-muted">加载中...</div>
+              )}
+            </div>
+
+            <div className="min-w-0 rounded-2xl border border-line bg-panel/95 p-5 shadow-panel">
+              {selectedReplayCase ? (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-ink">{selectedReplayCase.protocol} / {selectedReplayCase.message}</h3>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+                      <span className="rounded-full border border-line px-2 py-1 font-mono">{selectedReplayCase.protocol}</span>
+                      <span className="rounded-full border border-line px-2 py-1 font-mono">Peer: {selectedReplayCase.peer}</span>
+                      <span className="rounded-full border border-line px-2 py-1">{selectedReplayCase.source}</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                    <div className="mb-2 text-xs text-muted">验证级别</div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {Object.entries(selectedReplayCase.levels).sort(([a], [b]) => a.localeCompare(b)).map(([level, passed]) => (
+                        <div key={level} className={`rounded-lg border px-3 py-2 ${passed ? "border-accent/30 bg-accent/5" : "border-danger/30 bg-danger/5"}`}>
+                          <div className="text-xs text-muted">{level}</div>
+                          <div className={`mt-1 text-sm font-semibold ${passed ? "text-accent" : "text-danger"}`}>
+                            {passed ? "PASS" : "FAIL"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedReplayCase.payloadHashes ? (() => {
+                    const hashes = selectedReplayCase.payloadHashes as Record<string, unknown>;
+                    const allEqual = hashes.all_equal as boolean | undefined;
+                    return (
+                      <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                        <div className="mb-2 text-xs text-muted">Payload Hash 一致性</div>
+                        <div className={`text-sm font-semibold ${allEqual ? "text-accent" : "text-danger"}`}>
+                          {allEqual ? "全部一致" : "不一致"}
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          {Object.entries(hashes).filter(([k]) => k.endsWith("_sha256")).map(([k, v]) => (
+                            <div key={k} className="text-xs">
+                              <span className="text-muted">{k.replace(/_sha256$/, "")}:</span>
+                              <span className="ml-2 font-mono text-[#ced9e5] break-all">{String(v).slice(0, 16)}...</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })() : null}
+
+                  {selectedReplayCase.l2Tshark ? (() => {
+                    const tshark = selectedReplayCase.l2Tshark as Record<string, unknown>;
+                    const fieldChecks = tshark.field_checks as Record<string, { expected?: string; actual?: string; passed?: boolean }> | undefined;
+                    const recognized = tshark.protocol_recognized as boolean | undefined;
+                    const pcapMatch = tshark.pcap_payload_matches_generated as boolean | undefined;
+                    return (
+                      <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                        <div className="mb-2 text-xs text-muted">tshark / Wireshark 验证</div>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          <div className="rounded-lg border border-line/50 px-2 py-1.5">
+                            <div className="text-[10px] text-muted">协议识别</div>
+                            <div className={`text-sm font-semibold ${recognized ? "text-accent" : "text-danger"}`}>{recognized ? "PASS" : "FAIL"}</div>
+                          </div>
+                          <div className="rounded-lg border border-line/50 px-2 py-1.5">
+                            <div className="text-[10px] text-muted">Pcap Hash 匹配</div>
+                            <div className={`text-sm font-semibold ${pcapMatch ? "text-accent" : "text-danger"}`}>{pcapMatch ? "PASS" : "FAIL"}</div>
+                          </div>
+                          <div className="rounded-lg border border-line/50 px-2 py-1.5">
+                            <div className="text-[10px] text-muted">总体</div>
+                            <div className={`text-sm font-semibold ${(tshark.passed as boolean | undefined) ? "text-accent" : "text-danger"}`}>
+                              {(tshark.passed as boolean | undefined) ? "PASS" : "FAIL"}
+                            </div>
+                          </div>
+                        </div>
+                        {fieldChecks ? (
+                          <div className="mt-3 space-y-1">
+                            <div className="text-[10px] text-muted">字段检查</div>
+                            {Object.entries(fieldChecks).map(([field, check]) => (
+                              <div key={field} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="text-[#ced9e5] font-mono">{field}</span>
+                                <span className={check.passed ? "text-accent" : "text-danger"}>
+                                  {String(check.actual)} {check.passed ? "=" : "≠"} {String(check.expected)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })() : null}
+
+                  {selectedReplayCase.evidence ? (
+                    <div className="rounded-xl border border-line/70 bg-[#0b1524] px-4 py-3">
+                      <div className="mb-2 text-xs text-muted">对端交互证据</div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {Object.entries(selectedReplayCase.evidence).map(([k, v]) => (
+                          <div key={k} className="flex items-center justify-between gap-2 rounded-lg border border-line/50 px-2 py-1.5">
+                            <span className="text-xs text-[#ced9e5]">{k}</span>
+                            <span className={`text-xs font-semibold ${v ? "text-accent" : "text-danger"}`}>{v ? "YES" : "NO"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {(() => {
+                    const caseIdx = selectedReplayIndex;
+                    if (!replayResults) return null;
+                    const rc = replayResults.controlCases[caseIdx];
+                    if (rc?.source === "ngap_open5gs" && replayResults.ngapCase) {
+                      const ngap = replayResults.ngapCase;
+                      const mutation = ngap.mutation as Record<string, unknown> | undefined;
+                      const observations = ngap.observations as Record<string, unknown> | undefined;
+                      const checks = ngap.checks as Record<string, boolean> | undefined;
+                      return (
+                        <div className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
+                          <div className="mb-2 text-xs text-accent">NGAP Configuration Mutation</div>
+                          {mutation ? (
+                            <div className="mb-2 text-xs text-[#ced9e5]">
+                              Mutation: <span className="font-mono">{String(mutation.field)} = {String(mutation.value)}</span>
+                            </div>
+                          ) : null}
+                          {observations ? (
+                            <div className="space-y-1 text-xs text-[#ced9e5]">
+                              {Object.entries(observations).map(([k, v]) => (
+                                <div key={k}>{k}: <span className="font-mono">{String(v)}</span></div>
+                              ))}
+                            </div>
+                          ) : null}
+                          {checks ? (
+                            <div className="mt-2 space-y-1">
+                              {Object.entries(checks).map(([k, v]) => (
+                                <div key={k} className="flex items-center justify-between gap-2 text-xs">
+                                  <span className="text-[#ced9e5]">{k}</span>
+                                  <span className={v ? "text-accent" : "text-danger"}>{v ? "PASS" : "FAIL"}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
+                    if (rc?.source === "peer_validation" && rc.protocol === "GTP-U" && replayResults.gtpu) {
+                      const gtpu = replayResults.gtpu;
+                      const gtpuLevels = gtpu.levels as Record<string, boolean> | undefined;
+                      const gtpuChecks = gtpu.checks as Record<string, boolean> | undefined;
+                      const session = gtpu.session as Record<string, unknown> | undefined;
+                      return (
+                        <div className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
+                          <div className="mb-2 text-xs text-accent">GTP-U Live Replay</div>
+                          {session ? (
+                            <div className="mb-2 space-y-1 text-xs text-[#ced9e5]">
+                              {Object.entries(session).map(([k, v]) => (
+                                <div key={k}>{k}: <span className="font-mono">{String(v)}</span></div>
+                              ))}
+                            </div>
+                          ) : null}
+                          {gtpuChecks ? (
+                            <div className="space-y-1">
+                              {Object.entries(gtpuChecks).map(([k, v]) => (
+                                <div key={k} className="flex items-center justify-between gap-2 text-xs">
+                                  <span className="text-[#ced9e5]">{k}</span>
+                                  <span className={v ? "text-accent" : "text-danger"}>{v ? "PASS" : "FAIL"}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              ) : (
+                <div className="text-sm text-muted">选择左侧验证 case 查看详情。</div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }

@@ -134,3 +134,53 @@ export interface ProtocolReplayCard {
   requirement: string;
   path: string;
 }
+
+export interface ProtocolMessage {
+  source: string;
+  frame: number;
+  protocol: string;
+  info: string;
+  procedure: { code: number; name: string };
+  ip: { src: string; dst: string };
+  sctp?: { srcport: number; dstport: number };
+  gtp?: Record<string, unknown>;
+  ies: Record<string, unknown>;
+  time_relative: number;
+}
+
+export interface ProtocolMessagesResult {
+  protocols: string[];
+  sources: { id: string; label: string }[];
+  messages: ProtocolMessage[];
+}
+
+export interface EncodingTestcase {
+  id: string;
+  protocol: string;
+  description: string;
+  message?: string;
+  path: string;
+  structuredIes?: Record<string, unknown>;
+  mutation?: Record<string, unknown>;
+  expect?: Record<string, unknown>;
+  source: string;
+}
+
+export interface ReplayValidationCase {
+  protocol: string;
+  message: string;
+  peer: string;
+  levels: Record<string, boolean>;
+  evidence?: Record<string, boolean>;
+  payloadHashes?: Record<string, unknown>;
+  l2Tshark?: Record<string, unknown>;
+  caseId?: string;
+  source: string;
+}
+
+export interface ReplayValidationResult {
+  controlCases: ReplayValidationCase[];
+  gtpu?: Record<string, unknown>;
+  ngapCase?: Record<string, unknown>;
+  generatedAt?: string;
+}
