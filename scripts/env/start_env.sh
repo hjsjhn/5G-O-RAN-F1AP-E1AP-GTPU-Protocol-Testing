@@ -48,12 +48,20 @@ docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PR
 
 export SRSRAN_IMAGE_TAG="local-${ARCH}"
 
+COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.yml" -f "$COMPOSE_DIR/docker-compose.split.yml")
+
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD="docker-compose"
+else
+  echo "docker compose or docker-compose not found." >&2
+  exit 1
+fi
+
 echo "Starting O-RAN test environment (CU-DU split + Open5GS)..."
 
-docker compose \
-  -f "$COMPOSE_DIR/docker-compose.yml" \
-  -f "$COMPOSE_DIR/docker-compose.split.yml" \
-  up -d
+$COMPOSE_CMD "${COMPOSE_FILES[@]}" up -d
 
 echo ""
 echo "Waiting for services to become healthy..."
