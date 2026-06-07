@@ -43,10 +43,8 @@ if [[ ! -f "$SRSRAN_SRC/CMakeLists.txt" ]]; then
   git clone --depth 1 https://github.com/srsran/srsRAN_Project.git "$SRSRAN_SRC"
 fi
 
-if ! docker image inspect "$SRSRAN_IMAGE" >/dev/null 2>&1; then
-  echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
-  docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
-fi
+echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
+docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
 
 export SRSRAN_IMAGE_TAG="local-${ARCH}"
 
