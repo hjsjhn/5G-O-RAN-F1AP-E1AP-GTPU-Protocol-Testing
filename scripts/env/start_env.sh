@@ -37,6 +37,12 @@ if [[ ! -f "$COMPOSE_DIR/.env" ]]; then
   echo "Created $COMPOSE_DIR/.env from .env.example"
 fi
 
+SRSRAN_SRC="$PROJECT_ROOT/docker/srsran-src"
+if [[ ! -f "$SRSRAN_SRC/CMakeLists.txt" ]]; then
+  echo "Cloning srsRAN_Project source into $SRSRAN_SRC..."
+  git clone --depth 1 https://github.com/srsran/srsRAN_Project.git "$SRSRAN_SRC"
+fi
+
 if ! docker image inspect "$SRSRAN_IMAGE" >/dev/null 2>&1; then
   echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
   docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"

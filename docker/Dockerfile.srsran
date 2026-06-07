@@ -7,10 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libyaml-cpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ARG SRSRAN_REPO=https://github.com/srsran/srsRAN_Project.git
-ARG SRSRAN_BRANCH=master
-
-RUN git clone --depth 1 --branch "${SRSRAN_BRANCH}" "${SRSRAN_REPO}" /opt/srsRAN_Project
+COPY srsran-src /opt/srsRAN_Project
 
 WORKDIR /opt/srsRAN_Project/build
 RUN cmake .. -DENABLE_UHD=OFF -DENABLE_ZEROMQ=ON -DENABLE_CSV=OFF \
