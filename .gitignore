@@ -2,6 +2,7 @@
 captures/raw/*.pcap
 captures/processed/*.pcap
 captures/generated/*.pcap
+captures/generated/**/*.pcap
 
 # Local AI agent context
 CLAUDE.md
@@ -12,6 +13,10 @@ claude-*.md
 
 # tshark raw JSON (can be regenerated)
 json/tshark_raw/*.json
+json/replay_results/*.json
+json/replay_results/**/*.json
+json/replay_results/**/*.md
+json/flow_results/
 
 # Logs
 logs/**/*.log
@@ -21,16 +26,19 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+node_modules/
+dashboard/node_modules/
+dashboard/.npm-cache/
+dashboard/.playwright-browsers/
+dashboard/dist/
 
 # Docker
 docker/compose/.env
 
-# Cloned third-party repos
-docker/open5gs-5gc/
+# Cloned third-party repos (now managed as git submodules)
 
 # OS
 .DS_Store
-docker/srsran-src/
 
 # Captures and logs (raw data, too large for GitHub)
 captures/raw/*/*.log

@@ -6,6 +6,13 @@ This repository is developed by multiple agents and people in parallel. Treat `m
 
 Read [docs/collaboration.md](docs/collaboration.md) before changing Docker Compose files, network addresses, shell scripts, parser schemas, replay tools, or reports.
 
+Before changing project scope, phase plans, protocol coverage, or acceptance criteria, read:
+
+- `5G-ORAN 协议解析和测试 - 课程project.pdf`
+- `IMPLEMENTATION.md`
+
+Treat `IMPLEMENTATION.md` as the canonical full project plan. A branch-specific plan may refine it but must not silently narrow the course requirements.
+
 ## Baseline Safety
 
 - Keep the existing baseline runnable by default: `docker/compose/docker-compose.yml` + `docker/compose/docker-compose.split.yml`.

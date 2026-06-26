@@ -1,0 +1,3 @@
+# Opt-in flow evidence logging. The baseline keeps its existing file logging.
+log:
+  filename: stdout

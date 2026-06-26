@@ -1,0 +1,36 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.5",
+    "src_ip": "10.53.1.4"
+  },
+  "id": "e1ap_bearercontextmodificationrequest",
+  "key_ies": {
+    "dRB_ID": "1",
+    "procedureCode": "9",
+    "transportLayerAddress": "ac120a03"
+  },
+  "message": "BearerContextModificationRequest",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "0009002d0000030002000200000003000200000012001a400001002b001300004001001000000f80ac120a030000000100",
+    "length": 49
+  },
+  "procedure_code": 9,
+  "protocol": "E1AP",
+  "schema_version": 1,
+  "source": {
+    "capture_run": "registration_release_20260604_151613",
+    "frame": 200,
+    "pcap": "captures/raw/registration_release_20260604_151613/ran_sctp_full.pcap",
+    "time_epoch": "1780557539.240199000"
+  },
+  "transport": {
+    "dst_port": 41901,
+    "ppid": 64,
+    "src_port": 38462,
+    "stream_id": "0x0000",
+    "stream_sequence": "2",
+    "tsn": "1",
+    "type": "SCTP"
+  }
+}

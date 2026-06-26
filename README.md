@@ -51,14 +51,14 @@ scripts/
   env/                  环境启动/停止/重置/检查脚本
   capture/              容器内 tcpdump 抓包脚本
   parse/                pcap → tshark JSON → 规范化 JSON
-  encode/               JSON/模板 → 二进制 → pcap（待实现）
-  replay/               报文回放/注入（待实现）
+  replay/               JSON testcase → pcap → tshark 自动验证
   validate/             Wireshark 解码验证、日志分析、报告生成（待实现）
 json/                   tshark 原始 JSON / 规范化 JSON / 消息模板
 captures/               原始抓包 / 处理后 / 生成的 pcap
 reports/                测试用例报告 / 最终报告
 tests/                  pytest 测试
 docs/                   项目文档和实施进度
+dashboard/              本地展示网页（React/Vite 前端 + Express API）
 ```
 
 ## 协作方式
@@ -75,19 +75,24 @@ feature/replay-issue-dashboard
 
 最终交付不依赖 checkout 不同分支运行实验；不同场景应合并为 compose overlay 或 scenario 脚本。
 
+完整项目范围、课程要求映射和历史阶段计划见 [IMPLEMENTATION.md](IMPLEMENTATION.md)。当前 Stage 5C 的协议覆盖、编码、回放和验收顺序见 [docs/replay-execution-plan.md](docs/replay-execution-plan.md)。
+
 ## 快速开始
 
 ### 0. 首次准备
 
-本仓库没有 `scripts/setup.sh`。当前启动脚本会自动创建 `docker/compose/.env`，也会在本地镜像缺失时构建 `srsran/gnb:local-arm64`。
-
-如果本机还没有 `docker/srsran-src/`，先克隆 srsRAN Project 源码，因为 `docker/Dockerfile.srsran` 会从这个目录构建本地 ARM64 CU/DU/gNB 镜像：
+克隆本仓库时需要带上 `--recurse-submodules`，以同时拉取 srsRAN Project 源码：
 
 ```bash
-git clone https://github.com/srsran/srsRAN_Project.git docker/srsran-src
+git clone --recurse-submodules https://github.com/hjsjhn/5G-O-RAN-F1AP-E1AP-GTPU-Protocol-Testing.git
+cd 5G-O-RAN-F1AP-E1AP-GTPU-Protocol-Testing
 ```
 
-`docker/compose/.env` 会由 `scripts/env/start_env.sh` 从 `docker/compose/.env.example` 自动生成；需要改 IMSI/Ki/OPc 或 IP 拓扑时再手动编辑。
+如果已经 clone 了但忘了加 `--recurse-submodules`，可以补拉：
+
+```bash
+git submodule update --init --recursive
+```
 
 ### 1. 启动 5GC + srsRAN split CU/DU
 
@@ -175,6 +180,80 @@ git clone https://github.com/srsran/srsRAN_Project.git docker/srsran-src
 
 该脚本会收集容器 pcap/log 后停止 compose 环境。完整帧抓包优先使用 `scripts/capture/capture_traffic.sh`，因为 OrbStack 下 sidecar 抓 UDP 不可靠。
 
+### 6. 运行离线编码/回放测试
+
+```bash
+./scripts/replay/run_replay_tests.sh
+```
+
+当前 replay MVP 使用 JSON testcase 生成确定性的 GTP-U pcap，并自动调用 tshark 验证协议类型、TEID、内外层 IP、UDP 端口和 ICMP 字段。
+
+输入和 schema：
+
+- `tests/replay/cases/*.json`
+- `tests/replay/schema/replay-case-v1.schema.json`
+
+运行产物默认不提交：
+
+- `captures/generated/replay/*.pcap`
+- `json/replay_results/latest.json`
+
+### 7. 启动展示网页 Dashboard
+
+Dashboard 是最终演示用的本地实验控制台，用来展示：
+
+- baseline 环境状态、Open5GS digest 和关键容器状态
+- 协议解析、编码 testcase、回放/对端验证证据
+- 两条 UE Flow 自动化结果
+- Open5GS issue-driven 安全测试结果和 live run 入口
+
+开发模式启动：
+
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
+启动后访问：
+
+```text
+http://127.0.0.1:4173
+```
+
+端口说明：
+
+| 端口 | 作用 |
+|------|------|
+| `4173` | Vite 前端页面 |
+| `4174` | Express API，前端会自动代理 `/api` |
+
+如果只想跑构建后的版本：
+
+```bash
+cd dashboard
+npm install
+npm run build
+npm start
+```
+
+构建版由 Express 直接服务静态前端，默认访问：
+
+```text
+http://127.0.0.1:4174
+```
+
+注意：
+
+- 查看历史报告、JSON、UE Flow 结果、issue 结果时，不一定需要重新运行 live 实验。
+- 页面里的 `恢复 baseline`、`执行测试`、`Live run` 会操作 Docker 环境；运行前建议先执行：
+
+  ```bash
+  ./scripts/env/check_core_ready.sh
+  ```
+
+- Open5GS issue live run 可能会故意触发 NF crash，dashboard 会走恢复流程，但演示前最好先确认 baseline 是 `READY`。
+
 ## 协议接口
 
 | 接口 | 协议 | 协议栈 | 说明 |
@@ -211,13 +290,15 @@ f1u_net  172.18.10.0/24  → CU-UP(.2) ↔ DU(.3) 用户面
 - srsUE over ZMQ 注册与 PDU Session
 - 容器内 tcpdump 完整帧抓包
 - F1AP / NGAP / E1AP / GTP-U 解析为结构化 JSON
+- ≥5 类控制面消息 + GTP-U 的 JSON/pcap/tshark 编码验证
+- F1AP/E1AP/GTP-U 对端验证与两条完整 UE Flow 自动化测试
+- Open5GS issue-driven testcase 与 dashboard MVP 展示网页
 
 待完成：
 
 - F1 Handover 实验线：同 CU-CP 下双 cell / F1 handover 抓包和报告
 - N2 Handover 实验线：两套 gNB/CU-DU 接入同一 Open5GS 的 AMF-mediated handover 调研和抓包
-- 编码/回放/自动测例主线：JSON/template → pcap、完整 UE flow 测例、Open5GS issue reproduction
-- 前端 dashboard：左侧信令解析/JSON，右侧实时日志/testcase 输出
+- Dashboard 展示细化：协议/回放页需要从报告入口升级为可点击的消息、testcase 和 replay 证据链展示
 
 ## 实施进度
 

@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <style>
+      .bg { fill: #f6f7f9; }
+      .panel { fill: #ffffff; stroke: #d7dce3; stroke-width: 1; }
+      .header { fill: #20242a; }
+      .text { font-family: Inter, Arial, sans-serif; fill: #20242a; }
+      .title { font-size: 34px; font-weight: 700; }
+      .h2 { font-size: 26px; font-weight: 700; }
+      .body { font-size: 22px; }
+      .small { font-size: 18px; }
+      .mono { font-family: Menlo, Consolas, monospace; font-size: 17px; }
+      .muted { fill: #68707d; }
+      .ok { fill: #178a55; }
+      .blue { fill: #2463eb; }
+      .line { stroke: #6b7280; stroke-width: 3; marker-end: url(#arrow); }
+      .chip { fill: #ecfdf3; stroke: #b7e5c8; }
+      .chipb { fill: #edf2ff; stroke: #bfd0ff; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1440" height="900"/>
+  <rect class="header" width="1440" height="76"/>
+  <text class="text title" x="34" y="50" fill="#fff">Complete UE Flow Evidence</text>
+  <text class="text small" x="1030" y="48" fill="#d8dee9">registration · PDU session · release</text>
+
+  <rect class="panel" x="30" y="104" width="412" height="760" rx="8"/>
+  <text class="text h2" x="58" y="146">Flow 选择</text>
+  <rect class="chipb" x="58" y="184" width="330" height="90" rx="8"/>
+  <text class="text body blue" x="82" y="222">Registration + PDU Session</text>
+  <text class="text small muted" x="82" y="252">PASS · UE 获得 IPv4 · ping 触发 GTP-U</text>
+  <rect class="chip" x="58" y="304" width="330" height="90" rx="8"/>
+  <text class="text body ok" x="82" y="342">Registration + Release</text>
+  <text class="text small muted" x="82" y="372">PASS · inactivity-triggered release</text>
+  <text class="text h2" x="58" y="462">运行按钮</text>
+  <rect class="chipb" x="58" y="494" width="220" height="54" rx="8"/>
+  <text class="text body blue" x="82" y="530">Run selected flow</text>
+  <text class="text small muted" x="58" y="610">运行后自动采集：</text>
+  <text class="text small muted" x="58" y="646">pcap · normalized JSON · logs · result</text>
+
+  <rect class="panel" x="468" y="104" width="638" height="420" rx="8"/>
+  <text class="text h2" x="496" y="146">流程时间线</text>
+  <circle class="ok" cx="540" cy="244" r="16"/>
+  <text class="text body" x="570" y="252">NG Setup</text>
+  <line class="line" x1="650" y1="244" x2="760" y2="244"/>
+  <circle class="ok" cx="790" cy="244" r="16"/>
+  <text class="text body" x="820" y="252">Registration</text>
+  <line class="line" x1="960" y1="244" x2="1030" y2="244"/>
+  <circle class="ok" cx="540" cy="340" r="16"/>
+  <text class="text body" x="570" y="348">PDU Session</text>
+  <line class="line" x1="700" y1="340" x2="810" y2="340"/>
+  <circle class="ok" cx="840" cy="340" r="16"/>
+  <text class="text body" x="870" y="348">GTP-U Traffic</text>
+  <line class="line" x1="1010" y1="340" x2="1070" y2="340"/>
+  <circle class="ok" cx="540" cy="436" r="16"/>
+  <text class="text body" x="570" y="444">Release Command</text>
+  <line class="line" x1="760" y1="436" x2="850" y2="436"/>
+  <circle class="ok" cx="880" cy="436" r="16"/>
+  <text class="text body" x="910" y="444">Release Complete</text>
+
+  <rect class="panel" x="468" y="552" width="638" height="312" rx="8"/>
+  <text class="text h2" x="496" y="594">关键证据</text>
+  <text class="text body" x="496" y="648">控制面</text>
+  <text class="text small muted" x="630" y="648">InitialUEMessage, PDUSessionResourceSetup, UEContextRelease</text>
+  <text class="text body" x="496" y="700">用户面</text>
+  <text class="text small muted" x="630" y="700">GTP-U TEID, N3/F1-U packet, ping traffic</text>
+  <text class="text body" x="496" y="752">日志</text>
+  <text class="text small muted" x="630" y="752">CU-CP, CU-UP, DU, AMF, SMF, UPF, UE</text>
+  <text class="text body" x="496" y="804">结果</text>
+  <text class="text small ok" x="630" y="804">两条完整 flow 均为 PASS，可独立一条命令运行</text>
+
+  <rect class="panel" x="1130" y="104" width="380" height="760" rx="8" transform="translate(-100 0)"/>
+  <text class="text h2" x="1060" y="146">验收映射</text>
+  <text class="text body" x="1060" y="212">完整流程测试</text>
+  <text class="text small muted" x="1060" y="242">证明 UE、CU/DU、Open5GS 状态机推进</text>
+  <text class="text body" x="1060" y="314">跨层关联</text>
+  <text class="text small muted" x="1060" y="344">NGAP 控制面关联 PDU Session 和 GTP-U</text>
+  <text class="text body" x="1060" y="416">自动化</text>
+  <text class="text small muted" x="1060" y="446">一条命令运行、失败后恢复 baseline</text>
+  <text class="text body" x="1060" y="518">可展示输出</text>
+  <text class="text small muted" x="1060" y="548">timeline + JSON + log + result report</text>
+  <rect class="chip" x="1060" y="640" width="260" height="54" rx="8"/>
+  <text class="text body ok" x="1082" y="676">Flow validation PASS</text>
+</svg>

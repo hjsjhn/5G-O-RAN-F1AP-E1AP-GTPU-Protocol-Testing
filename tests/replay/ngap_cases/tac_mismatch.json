@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "ngap_tac_mismatch",
+  "description": "Start a protocol-aware UERANSIM gNB with an unsupported TAC",
+  "protocol": "NGAP",
+  "kind": "mutation",
+  "mutation": {
+    "field": "tracking_area_code",
+    "value": 999
+  },
+  "expect": {
+    "configured_tac": "999",
+    "ng_setup_success": false
+  }
+}

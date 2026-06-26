@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "f1ap_generated_gnb_du_configuration_update",
+  "description": "JSON-driven GNBDUConfigurationUpdate sent on the isolated F1 association",
+  "protocol": "F1AP",
+  "message": "GNBDUConfigurationUpdate",
+  "procedure_code": 3,
+  "transaction_id": 42,
+  "mutable_ies": ["transaction_id", "gnb_du_id"],
+  "structured_ies": {
+    "transaction_id": 42,
+    "gnb_du_id": 23553
+  },
+  "expected_response": {
+    "outcomes": {
+      "successfulOutcome": "GNBDUConfigurationUpdateAcknowledge",
+      "unsuccessfulOutcome": "GNBDUConfigurationUpdateFailure"
+    }
+  },
+  "expect": {
+    "display_filter": "f1ap && f1ap.GNBDUConfigurationUpdate_element",
+    "fields": {
+      "f1ap.procedureCode": "3",
+      "f1ap.TransactionID": "42",
+      "f1ap.GNB_DU_ID": "23553"
+    }
+  }
+}

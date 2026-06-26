@@ -1,0 +1,6 @@
+[submodule "docker/srsran-src"]
+	path = docker/srsran-src
+	url = https://github.com/srsran/srsRAN_Project.git
+[submodule "docker/open5gs-5gc"]
+	path = docker/open5gs-5gc
+	url = https://github.com/herlesupreeth/docker_open5gs.git

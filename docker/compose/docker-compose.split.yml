@@ -3,7 +3,7 @@
 # Use with: docker-compose -f docker-compose.yml -f docker-compose.split.yml up
 
 x-srsran-common: &srsran-common
-  image: srsran/gnb:local-arm64
+  image: srsran/gnb:${SRSRAN_IMAGE_TAG:-local-arm64}
   env_file:
     - .env
 
@@ -18,7 +18,7 @@ services:
       - cu_cp_pcap:/tmp
     depends_on:
       amf:
-        condition: service_started
+        condition: service_healthy
     configs:
       - cu_cp_config.yml
       - cu_cp_compose_config.yml

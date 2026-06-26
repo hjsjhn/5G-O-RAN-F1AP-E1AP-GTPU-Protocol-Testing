@@ -1,0 +1,63 @@
+{
+  "description": "N3 downlink GTP-U T-PDU containing an ICMP echo reply",
+  "expect": {
+    "display_filter": "gtp && icmp",
+    "fields": {
+      "gtp.message": "0xff",
+      "gtp.teid": "0x00000003",
+      "icmp.seq": "1",
+      "icmp.type": "0",
+      "ip.dst": "10.53.1.5,10.45.0.16",
+      "ip.src": "10.53.1.3,8.8.8.8",
+      "udp.dstport": "2152",
+      "udp.srcport": "2152"
+    },
+    "packet_count": 1,
+    "normalized": {
+      "protocol": "GTP-U",
+      "teid": "0x00000003",
+      "message_type": "0xff",
+      "outer_src": "10.53.1.3",
+      "outer_dst": "10.53.1.5",
+      "inner_src": "8.8.8.8",
+      "inner_dst": "10.45.0.16"
+    }
+  },
+  "id": "gtpu_n3_downlink_icmp_echo_reply",
+  "packet": {
+    "ethernet": {
+      "dst": "02:00:00:00:00:05",
+      "src": "02:00:00:00:00:03"
+    },
+    "gtpu": {
+      "flags": "0x30",
+      "message_type": "0xff",
+      "teid": "0x00000003"
+    },
+    "icmp_echo": {
+      "code": 0,
+      "identifier": "0x0013",
+      "payload": "5G O-RAN replay downlink",
+      "sequence": 1,
+      "type": 0
+    },
+    "inner_ipv4": {
+      "dst": "10.45.0.16",
+      "identification": "0x1002",
+      "src": "8.8.8.8",
+      "ttl": 64
+    },
+    "outer_ipv4": {
+      "dst": "10.53.1.5",
+      "identification": "0x2002",
+      "src": "10.53.1.3",
+      "ttl": 64
+    },
+    "udp": {
+      "dst_port": 2152,
+      "src_port": 2152
+    }
+  },
+  "protocol": "GTP-U",
+  "schema_version": 1
+}

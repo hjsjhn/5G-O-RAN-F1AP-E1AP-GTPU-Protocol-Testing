@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "e1ap_generated_gnb_cu_up_e1_setup_request",
+  "description": "JSON-driven GNB-CU-UP-E1SetupRequest sent by the isolated CU-UP endpoint",
+  "protocol": "E1AP",
+  "message": "GNB-CU-UP-E1SetupRequest",
+  "procedure_code": 3,
+  "transaction_id": 51,
+  "mutable_ies": ["transaction_id", "gnb_cu_up_id", "gnb_cu_up_name", "supported_plmn"],
+  "structured_ies": {
+    "transaction_id": 51,
+    "gnb_cu_up_id": 23554,
+    "gnb_cu_up_name": "stage5c-peer-cu-up",
+    "cn_support": "5gc",
+    "supported_plmn": "00f110"
+  },
+  "expected_response": {
+    "outcomes": {
+      "successfulOutcome": "GNB-CU-UP-E1SetupResponse",
+      "unsuccessfulOutcome": "GNB-CU-UP-E1SetupFailure"
+    }
+  },
+  "expect": {
+    "display_filter": "e1ap && e1ap.GNB_CU_UP_E1SetupRequest_element",
+    "fields": {
+      "e1ap.procedureCode": "3",
+      "e1ap.TransactionID": "51",
+      "e1ap.GNB_CU_UP_ID": "23554"
+    }
+  }
+}

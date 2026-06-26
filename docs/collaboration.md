@@ -92,3 +92,9 @@ docker/compose/docker-compose.n2-ho.yml
 - 两条完整 UE flow 自动化测试。
 - 基于 Open5GS v2.7.6 issue 的重放/变异测试和安全分析。
 - 前端 dashboard：左侧信令解析/JSON，右侧实时日志/testcase 输出。
+
+本分支的详细 focus 和里程碑见：
+
+```text
+docs/replay-issue-dashboard-focus.md
+```

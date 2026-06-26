@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "expect": {
+      "additionalProperties": false,
+      "properties": {
+        "display_filter": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "fields": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "minProperties": 1,
+          "type": "object"
+        },
+        "packet_count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "normalized": {
+          "additionalProperties": false,
+          "properties": {
+            "procedure_code": {
+              "type": "integer"
+            },
+            "procedure_name": {
+              "type": "string"
+            },
+            "protocol": {
+              "enum": [
+                "GTP-U",
+                "F1AP",
+                "E1AP",
+                "NGAP",
+                "XnAP"
+              ]
+            },
+            "teid": {
+              "type": "string"
+            },
+            "message_type": {
+              "type": "string"
+            },
+            "outer_src": {
+              "type": "string"
+            },
+            "outer_dst": {
+              "type": "string"
+            },
+            "inner_src": {
+              "type": "string"
+            },
+            "inner_dst": {
+              "type": "string"
+            },
+            "ies": {
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "integer",
+                  "boolean"
+                ]
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "protocol"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "display_filter",
+        "fields",
+        "packet_count"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "pattern": "^[a-z0-9_]+$",
+      "type": "string"
+    },
+    "mutation": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "field",
+        "value"
+      ],
+      "type": "object"
+    },
+    "packet": {
+      "additionalProperties": false,
+      "properties": {
+        "ethernet": {
+          "$ref": "#/$defs/ethernet"
+        },
+        "gtpu": {
+          "$ref": "#/$defs/gtpu"
+        },
+        "icmp_echo": {
+          "$ref": "#/$defs/icmpEcho"
+        },
+        "inner_ipv4": {
+          "$ref": "#/$defs/ipv4"
+        },
+        "outer_ipv4": {
+          "$ref": "#/$defs/ipv4"
+        },
+        "udp": {
+          "$ref": "#/$defs/udp"
+        }
+      },
+      "required": [
+        "ethernet",
+        "outer_ipv4",
+        "udp",
+        "gtpu",
+        "inner_ipv4",
+        "icmp_echo"
+      ],
+      "type": "object"
+    },
+    "protocol": {
+      "enum": [
+        "GTP-U",
+        "F1AP",
+        "E1AP",
+        "NGAP",
+        "XnAP"
+      ]
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "structured_ies": {
+      "additionalProperties": {
+        "type": [
+          "string",
+          "integer",
+          "boolean"
+        ]
+      },
+      "minProperties": 1,
+      "type": "object"
+    },
+    "template": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "description",
+    "protocol",
+    "expect"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "packet"
+      ]
+    },
+    {
+      "required": [
+        "template"
+      ]
+    }
+  ],
+  "type": "object",
+  "$defs": {
+    "ethernet": {
+      "additionalProperties": false,
+      "properties": {
+        "dst": {
+          "type": "string"
+        },
+        "ethertype": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "src": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "src",
+        "dst"
+      ],
+      "type": "object"
+    },
+    "gtpu": {
+      "additionalProperties": false,
+      "properties": {
+        "flags": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "message_type": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "teid": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        }
+      },
+      "required": [
+        "teid"
+      ],
+      "type": "object"
+    },
+    "icmpEcho": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "identifier": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "payload": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "type": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ipv4": {
+      "additionalProperties": false,
+      "properties": {
+        "dst": {
+          "type": "string"
+        },
+        "identification": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "src": {
+          "type": "string"
+        },
+        "ttl": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        }
+      },
+      "required": [
+        "src",
+        "dst"
+      ],
+      "type": "object"
+    },
+    "udp": {
+      "additionalProperties": false,
+      "properties": {
+        "dst_port": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "src_port": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.6",
+    "src_ip": "10.53.1.4"
+  },
+  "id": "f1ap_uecontextmodificationrequest",
+  "key_ies": {
+    "procedureCode": "7",
+    "transportLayerAddress": "ac120a02",
+    "transportLayerAddressIPv4": "172.18.10.2"
+  },
+  "message": "UEContextModificationRequest",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "0007006f0000060028000200000029000200000009001e201c1035020020000f000000000080000000100801002000500000800002004c000600004b000108002500270000240022102000a4400a00000942008004000942003eac120a020000000100000000a1400140009e4005303b9aca00",
+    "length": 115
+  },
+  "procedure_code": 7,
+  "protocol": "F1AP",
+  "schema_version": 1,
+  "source": {
+    "capture_run": "registration_release_20260604_151613",
+    "frame": 192,
+    "pcap": "captures/raw/registration_release_20260604_151613/ran_sctp_full.pcap",
+    "time_epoch": "1780557539.023513000"
+  },
+  "transport": {
+    "dst_port": 42648,
+    "ppid": 62,
+    "src_port": 38472,
+    "stream_id": "0x0000",
+    "stream_sequence": "8",
+    "tsn": "8",
+    "type": "SCTP"
+  }
+}

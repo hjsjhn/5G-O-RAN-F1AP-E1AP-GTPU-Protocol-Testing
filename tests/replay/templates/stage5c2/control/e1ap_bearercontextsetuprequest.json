@@ -1,0 +1,37 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.5",
+    "src_ip": "10.53.1.4"
+  },
+  "id": "e1ap_bearercontextsetuprequest",
+  "key_ies": {
+    "dRB_ID": "1",
+    "procedureCode": "8",
+    "qoS_Flow_Identifier": "1",
+    "transportLayerAddress": "0a350103"
+  },
+  "message": "BearerContextSetupRequest",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "0008008096000007000200020000000d0044104820ff2a08c5ddfe54e71057db44d1b1392fe6c02b3efee0015e3c6927372d216274208e01941c8f0b1d7b6547e8c6c66a791ff9437045e783af7c564dd00e85dc4925000e0005303b9aca00003a400300f1100017000140003b0003000077000f0025400001002a001e00000100021001f00a35010300008b63000005300a214f00000080000942",
+    "length": 155
+  },
+  "procedure_code": 8,
+  "protocol": "E1AP",
+  "schema_version": 1,
+  "source": {
+    "capture_run": "registration_release_20260604_151613",
+    "frame": 189,
+    "pcap": "captures/raw/registration_release_20260604_151613/ran_sctp_full.pcap",
+    "time_epoch": "1780557539.008502000"
+  },
+  "transport": {
+    "dst_port": 41901,
+    "ppid": 64,
+    "src_port": 38462,
+    "stream_id": "0x0000",
+    "stream_sequence": "1",
+    "tsn": "0",
+    "type": "SCTP"
+  }
+}

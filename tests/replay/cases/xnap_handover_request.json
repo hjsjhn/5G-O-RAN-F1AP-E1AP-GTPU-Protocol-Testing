@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "xnap_handover_request",
+  "description": "Offline construct XnAP HandoverRequest as SCTP DATA",
+  "protocol": "XnAP",
+  "template": "tests/replay/templates/stage5c3/xnap/handover_request.json",
+  "expect": {
+    "display_filter": "xnap && xnap.HandoverRequest_element",
+    "packet_count": 1,
+    "fields": {
+      "xnap.procedureCode": "0",
+      "xnap.NG_RANnodeUEXnAPID": "1",
+      "xnap.pduSessionId": "1",
+      "xnap.radioNetwork": "1",
+      "xnap.NR_Cell_Identity": "0x00000000066c0000",
+      "xnap.plmn_id": "00f110",
+      "xnap.qfi": "1",
+      "xnap.ng_c_UE_reference": "1",
+      "sctp.data_payload_proto_id": "61"
+    },
+    "normalized": {"protocol": "XnAP", "procedure_code": 0, "procedure_name": "HandoverRequest"}
+  }
+}

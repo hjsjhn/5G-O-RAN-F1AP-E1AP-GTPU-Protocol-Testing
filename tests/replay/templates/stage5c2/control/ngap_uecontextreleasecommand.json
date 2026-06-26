@@ -1,0 +1,36 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.4",
+    "src_ip": "10.53.1.2"
+  },
+  "id": "ngap_uecontextreleasecommand",
+  "key_ies": {
+    "AMF_UE_NGAP_ID": "5",
+    "RAN_UE_NGAP_ID": "0",
+    "procedureCode": "41"
+  },
+  "message": "UEContextReleaseCommand",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "002900110000020072000400050000000f40020500",
+    "length": 21
+  },
+  "procedure_code": 41,
+  "protocol": "NGAP",
+  "schema_version": 1,
+  "source": {
+    "capture_run": "registration_release_20260604_151613",
+    "frame": 509,
+    "pcap": "captures/raw/registration_release_20260604_151613/ran_sctp_full.pcap",
+    "time_epoch": "1780557659.044271000"
+  },
+  "transport": {
+    "dst_port": 48835,
+    "ppid": 60,
+    "src_port": 38412,
+    "stream_id": "0x0001",
+    "stream_sequence": "5",
+    "tsn": "5",
+    "type": "SCTP"
+  }
+}

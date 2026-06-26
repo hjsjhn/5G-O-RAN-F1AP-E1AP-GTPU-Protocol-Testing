@@ -5,24 +5,63 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_DIR="$PROJECT_ROOT/docker/compose"
-SRSRAN_IMAGE="${SRSRAN_IMAGE:-srsran/gnb:local-arm64}"
+ARCH="$(uname -m)"
+SRSRAN_IMAGE="${SRSRAN_IMAGE:-srsran/gnb:local-${ARCH}}"
+
+ensure_docker_ready() {
+  if docker info >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if command -v orb >/dev/null 2>&1; then
+    echo "Docker daemon is unavailable; starting OrbStack..."
+    if orb start; then
+      for _ in $(seq 1 60); do
+        if docker info >/dev/null 2>&1; then
+          echo "OrbStack Docker daemon is ready."
+          return 0
+        fi
+        sleep 2
+      done
+    fi
+  fi
+
+  echo "Docker daemon is unavailable. Start Docker/OrbStack and retry." >&2
+  exit 1
+}
+
+ensure_docker_ready
 
 if [[ ! -f "$COMPOSE_DIR/.env" ]]; then
   cp "$COMPOSE_DIR/.env.example" "$COMPOSE_DIR/.env"
   echo "Created $COMPOSE_DIR/.env from .env.example"
 fi
 
-if ! docker image inspect "$SRSRAN_IMAGE" >/dev/null 2>&1; then
-  echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
-  docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
+SRSRAN_SRC="$PROJECT_ROOT/docker/srsran-src"
+if [[ ! -f "$SRSRAN_SRC/CMakeLists.txt" ]]; then
+  echo "Initializing submodules..."
+  git -C "$PROJECT_ROOT" submodule update --init --recursive
+fi
+
+echo "Building $SRSRAN_IMAGE for local CU/DU/gNB runtime..."
+docker build -t "$SRSRAN_IMAGE" -f "$PROJECT_ROOT/docker/Dockerfile.srsran" "$PROJECT_ROOT/docker"
+
+export SRSRAN_IMAGE_TAG="local-${ARCH}"
+
+COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.yml" -f "$COMPOSE_DIR/docker-compose.split.yml")
+
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD="docker-compose"
+else
+  echo "docker compose or docker-compose not found." >&2
+  exit 1
 fi
 
 echo "Starting O-RAN test environment (CU-DU split + Open5GS)..."
 
-docker compose \
-  -f "$COMPOSE_DIR/docker-compose.yml" \
-  -f "$COMPOSE_DIR/docker-compose.split.yml" \
-  up -d
+$COMPOSE_CMD "${COMPOSE_FILES[@]}" up -d
 
 echo ""
 echo "Waiting for services to become healthy..."

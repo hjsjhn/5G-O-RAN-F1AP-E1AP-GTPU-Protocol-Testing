@@ -1,0 +1,11 @@
+# Opt-in overlay for automated flow evidence collection.
+services:
+  cu-cp:
+    volumes:
+      - ../configs/flow_evidence_log.yml:/flow_evidence_log.yml:ro
+    command: srscucp -c /cu_cp_config.yml -c /cu_cp_compose_config.yml -c /flow_evidence_log.yml
+
+  cu-up:
+    volumes:
+      - ../configs/flow_evidence_log.yml:/flow_evidence_log.yml:ro
+    command: srscuup -c /cu_up_config.yml -c /cu_up_compose_config.yml -c /flow_evidence_log.yml

@@ -1,4 +1,4 @@
-# Build srsRAN CU-CP/CU-UP/DU natively for ARM64 (Apple Silicon)
+# Build srsRAN CU-CP/CU-UP/DU (supports ARM64 and x86_64)
 FROM ubuntu:24.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

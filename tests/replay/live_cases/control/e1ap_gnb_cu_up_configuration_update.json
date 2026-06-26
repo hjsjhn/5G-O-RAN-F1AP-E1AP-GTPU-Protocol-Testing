@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "e1ap_generated_gnb_cu_up_configuration_update",
+  "description": "JSON-driven GNB-CU-UP-ConfigurationUpdate sent on the isolated E1 association",
+  "protocol": "E1AP",
+  "message": "GNB-CU-UP-ConfigurationUpdate",
+  "procedure_code": 5,
+  "transaction_id": 52,
+  "mutable_ies": ["transaction_id", "gnb_cu_up_id", "supported_plmn"],
+  "structured_ies": {
+    "transaction_id": 52,
+    "gnb_cu_up_id": 23554,
+    "supported_plmn": "00f110"
+  },
+  "expected_response": {
+    "outcomes": {
+      "successfulOutcome": "GNB-CU-UP-ConfigurationUpdateAcknowledge",
+      "unsuccessfulOutcome": "GNB-CU-UP-ConfigurationUpdateFailure"
+    }
+  },
+  "expect": {
+    "display_filter": "e1ap && e1ap.GNB_CU_UP_ConfigurationUpdate_element",
+    "fields": {
+      "e1ap.procedureCode": "5",
+      "e1ap.TransactionID": "52",
+      "e1ap.GNB_CU_UP_ID": "23554"
+    }
+  }
+}

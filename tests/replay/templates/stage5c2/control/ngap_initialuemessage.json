@@ -1,0 +1,35 @@
+{
+  "direction": {
+    "dst_ip": "10.53.1.2",
+    "src_ip": "10.53.1.4"
+  },
+  "id": "ngap_initialuemessage",
+  "key_ies": {
+    "RAN_UE_NGAP_ID": "0",
+    "procedureCode": "15"
+  },
+  "message": "InitialUEMessage",
+  "payload": {
+    "encoding": "ASN.1 APER",
+    "hex": "000f404200000500550002000000260018177e004179000d0100f1100000000010325476082e02f0700079000f4000f11000066c000000f110000007005a4001180070400100",
+    "length": 70
+  },
+  "procedure_code": 15,
+  "protocol": "NGAP",
+  "schema_version": 1,
+  "source": {
+    "capture_run": "registration_release_20260604_151613",
+    "frame": 161,
+    "pcap": "captures/raw/registration_release_20260604_151613/ran_sctp_full.pcap",
+    "time_epoch": "1780557538.399357000"
+  },
+  "transport": {
+    "dst_port": 38412,
+    "ppid": 60,
+    "src_port": 48835,
+    "stream_id": "0x0000",
+    "stream_sequence": "1",
+    "tsn": "0",
+    "type": "SCTP"
+  }
+}
